@@ -538,12 +538,38 @@ function getGPS(context){
   const inputId=context+'-loc', statusId=context+'-loc-status';
   const statusEl=document.getElementById(statusId);
   statusEl.textContent='Acquiring GPS...'; statusEl.className='loc-status';
-  if(!navigator.geolocation){statusEl.textContent='Not supported';statusEl.className='loc-status err';return;}
-  navigator.geolocation.getCurrentPosition(pos=>{
+
+  if(!navigator.geolocation){
+    statusEl.textContent='GPS not available in this browser';
+    statusEl.className='loc-status err';
+    return;
+  }
+
+  // Try high accuracy first, fall back to low accuracy
+  function onSuccess(pos){
     cfgCenter={lat:pos.coords.latitude,lng:pos.coords.longitude};
     document.getElementById(inputId).value=cfgCenter.lat.toFixed(5)+', '+cfgCenter.lng.toFixed(5);
-    statusEl.textContent='✓ GPS location acquired'; statusEl.className='loc-status ok';
-  },err=>{statusEl.textContent='GPS error: '+err.message;statusEl.className='loc-status err';},{enableHighAccuracy:true,timeout:10000});
+    statusEl.textContent='✓ GPS acquired ('+pos.coords.accuracy.toFixed(0)+'m accuracy)';
+    statusEl.className='loc-status ok';
+  }
+
+  function onError(err){
+    const msgs={1:'Permission denied — allow location in browser settings',2:'Position unavailable',3:'Timed out'};
+    // Try low accuracy as fallback
+    if(err.code===3||err.code===2){
+      navigator.geolocation.getCurrentPosition(onSuccess,onFinalError,{enableHighAccuracy:false,timeout:15000,maximumAge:60000});
+    } else {
+      onFinalError(err);
+    }
+  }
+
+  function onFinalError(err){
+    const msgs={1:'Location permission denied — check browser settings',2:'Location unavailable',3:'GPS timed out — try again'};
+    statusEl.textContent=msgs[err.code]||('GPS error: '+err.message);
+    statusEl.className='loc-status err';
+  }
+
+  navigator.geolocation.getCurrentPosition(onSuccess,onError,{enableHighAccuracy:true,timeout:10000,maximumAge:0});
 }
 
 async function resolveLocation(inputId, statusId){
@@ -570,37 +596,26 @@ async function resolveLocation(inputId, statusId){
   statusEl.textContent='Resolving address...';
   statusEl.className='loc-status';
 
-  // Wait for Maps API if not ready yet (it loads async on page load)
-  if(!window._mapsApiReady){
-    await new Promise(resolve=>{
-      window._pendingGeocode=resolve;
-      setTimeout(resolve,5000); // max 5s wait
-    });
-    window._pendingGeocode=null;
-  }
-
-  if(typeof google==='undefined'||!google.maps){
+   // Use OpenStreetMap Nominatim — free, no API key required
+  try {
+    const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}&limit=1&countrycodes=us`;
+    const resp=await fetch(url,{headers:{'Accept-Language':'en','User-Agent':'CaptureTheFlagGame/1.0'}});
+    const data=await resp.json();
+    if(data&&data.length>0){
+      cfgCenter={lat:parseFloat(data[0].lat),lng:parseFloat(data[0].lon)};
+      statusEl.textContent='✓ '+data[0].display_name.split(',').slice(0,3).join(',');
+      statusEl.className='loc-status ok';
+    } else {
+      cfgCenter={lat:43.61667,lng:-116.20472};
+      statusEl.textContent='Address not found — using default';
+      statusEl.className='loc-status err';
+    }
+  } catch(e){
     cfgCenter={lat:43.61667,lng:-116.20472};
-    statusEl.textContent='Maps not loaded — using default';
+    statusEl.textContent='Network error — using default';
     statusEl.className='loc-status err';
-    return;
+    console.warn('Nominatim error:',e);
   }
-
-  return new Promise(resolve=>{
-    new google.maps.Geocoder().geocode({address:input,region:'us'},(results,status)=>{
-      if(status==='OK'&&results[0]){
-        cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};
-        statusEl.textContent='✓ '+results[0].formatted_address;
-        statusEl.className='loc-status ok';
-      } else {
-        cfgCenter={lat:43.61667,lng:-116.20472};
-        statusEl.textContent=`Address not found (${status}) — using default`;
-        statusEl.className='loc-status err';
-        console.warn('Geocode status:',status);
-      }
-      resolve();
-    });
-  });
 }
 
 let _geocodeTimer=null;
