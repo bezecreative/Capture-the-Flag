@@ -1,0 +1,1757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>CAPTURE THE FLAG</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --black:#0a0a0a;--white:#ffffff;--off:#f5f5f3;
+  --rule:#e0e0dd;--muted:#888884;
+  --green:#00a854;--red:#C8102E;--gold:#e8a800;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
+  --fd:'Barlow Condensed',sans-serif;
+  --fb:'Barlow',sans-serif;
+}
+html,body{height:100%;overflow:hidden;font-family:var(--fb);background:var(--white);color:var(--black);-webkit-font-smoothing:antialiased;}
+
+/* ── SCREENS ── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .28s ease;z-index:1;height:100%;height:-webkit-fill-available;}
+.screen.active{opacity:1;pointer-events:all;z-index:2;}
+.scroll-wrap{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;}
+.inner{display:flex;flex-direction:column;min-height:100%;padding:calc(var(--safe-top) + 44px) 24px calc(var(--safe-bot) + 52px);}
+
+/* ── SHARED ELEMENTS ── */
+.top-rule{width:100%;height:2px;background:var(--red);margin-bottom:28px;}
+.eyebrow{font-family:var(--fd);font-size:.68rem;font-weight:700;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.big-title{font-family:var(--fd);font-weight:900;font-size:clamp(3.2rem,16vw,5rem);line-height:.92;letter-spacing:-1px;text-transform:uppercase;margin-bottom:4px;}
+.big-sub{font-family:var(--fd);font-weight:400;font-size:clamp(1rem,4.5vw,1.3rem);letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
+
+/* Section label */
+.cfg-label{display:block;font-family:var(--fd);font-weight:700;font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.cfg-section{margin-bottom:24px;}
+
+/* Text input */
+.field-input{display:block;width:100%;background:var(--off);border:1px solid var(--rule);border-bottom:2px solid var(--black);color:var(--black);padding:14px 16px;font-family:var(--fd);font-weight:700;font-size:1.3rem;letter-spacing:2px;text-transform:uppercase;outline:none;-webkit-appearance:none;border-radius:0;transition:border-color .15s;}
+.field-input::placeholder{color:var(--rule);font-weight:400;font-size:1rem;letter-spacing:1px;text-transform:none;}
+.field-input:focus{border-bottom-color:#1a5cff;background:var(--white);}
+
+/* Select */
+.cfg-select-wrap{position:relative;border:1px solid var(--black);background:var(--off);}
+.cfg-select-wrap::after{content:'↓';position:absolute;right:14px;top:50%;transform:translateY(-50%);font-family:var(--fd);font-size:.9rem;font-weight:700;color:var(--black);pointer-events:none;}
+.cfg-select{width:100%;padding:14px 40px 14px 14px;background:transparent;border:none;outline:none;font-family:var(--fd);font-weight:700;font-size:1.1rem;letter-spacing:1px;color:var(--black);-webkit-appearance:none;appearance:none;cursor:pointer;}
+
+/* Location */
+.location-row{display:flex;border:1px solid var(--black);}
+.location-input{flex:1;padding:13px 14px;background:var(--off);border:none;outline:none;font-family:var(--fd);font-weight:700;font-size:1.05rem;letter-spacing:1px;color:var(--black);-webkit-appearance:none;border-radius:0;}
+.location-input::placeholder{color:var(--rule);font-weight:400;font-size:.9rem;}
+.gps-btn{padding:0 16px;background:var(--black);border:none;color:var(--white);font-family:var(--fd);font-weight:700;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;white-space:nowrap;-webkit-appearance:none;touch-action:manipulation;}
+.gps-btn:active{background:#333;}
+.loc-status{font-family:var(--fd);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:6px;min-height:14px;}
+.loc-status.ok{color:var(--green);}.loc-status.err{color:var(--red);}
+
+/* Team count stepper */
+.stepper-row{display:flex;border:1px solid var(--black);overflow:hidden;}
+.step-btn{width:56px;padding:14px 0;background:var(--black);color:var(--white);border:none;font-family:var(--fd);font-weight:900;font-size:1.4rem;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-btn:active{background:#333;}
+.step-display{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;background:var(--off);}
+.step-num{font-family:var(--fd);font-weight:900;font-size:2rem;line-height:1;color:var(--black);}
+.step-text{font-family:var(--fd);font-size:.55rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:2px;}
+.team-dots-preview{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;justify-content:center;}
+.tdp{width:9px;height:9px;border-radius:50%;}
+
+/* Team strip */
+.team-pick-label{display:block;font-family:var(--fd);font-weight:700;font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;margin-top:20px;}
+.team-strip{display:flex;border:1px solid var(--black);}
+.tsb{flex:1;padding:15px 4px;min-height:66px;border:none;border-right:1px solid var(--black);background:transparent;font-family:var(--fd);font-weight:800;font-size:.82rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;user-select:none;-webkit-user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:background .12s;}
+.tsb:last-child{border-right:none;}
+.tsb .tdot{width:10px;height:10px;border-radius:50%;border:1.5px solid currentColor;}
+.tsb.sel .tdot{background:var(--white);border-color:var(--white)!important;}
+
+/* Primary / secondary buttons */
+.btn-primary{display:block;width:100%;padding:19px 24px;background:var(--red);color:var(--white);border:none;font-family:var(--fd);font-weight:900;font-size:1.05rem;letter-spacing:4px;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;transition:background .15s;margin-bottom:12px;}
+.btn-primary:active{background:#a00d25;}
+.btn-secondary{display:block;width:100%;padding:18px 24px;background:transparent;color:var(--black);border:2px solid var(--black);font-family:var(--fd);font-weight:800;font-size:1.05rem;letter-spacing:4px;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;transition:all .15s;margin-bottom:12px;}
+.btn-secondary:active{background:var(--black);color:var(--white);}
+.btn-ghost{display:block;width:100%;padding:14px 24px;background:transparent;color:var(--muted);border:1px solid var(--rule);font-family:var(--fd);font-weight:700;font-size:.85rem;letter-spacing:3px;text-transform:uppercase;cursor:pointer;-webkit-appearance:none;touch-action:manipulation;}
+.btn-ghost:active{background:var(--off);}
+
+/* ── LANDING SCREEN ── */
+#landing{background:var(--white);}
+.landing-inner{display:flex;flex-direction:column;justify-content:space-between;min-height:100%;padding:calc(var(--safe-top) + 44px) 24px calc(var(--safe-bot) + 48px);}
+.landing-top{}
+.landing-cta{margin-top:20px;}
+.divider{display:flex;align-items:center;gap:12px;margin:8px 0;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--rule);}
+.divider span{font-family:var(--fd);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+
+
+.live-dot{display:inline-flex;align-items:center;gap:5px;font-family:var(--fd);font-weight:700;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--green);}
+.live-dot::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── CREATE SCREEN ── */
+#create{background:var(--white);}
+
+/* Game code reveal card */
+.code-card{background:var(--black);color:var(--white);padding:28px 24px;margin-bottom:24px;text-align:center;position:relative;overflow:hidden;}
+.code-card::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.02) 0px,rgba(255,255,255,.02) 1px,transparent 1px,transparent 8px);}
+.code-eyebrow{font-family:var(--fd);font-size:.58rem;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:10px;position:relative;}
+.code-value{font-family:var(--fd);font-weight:900;font-size:3.2rem;letter-spacing:8px;color:var(--white);line-height:1;position:relative;}
+.code-sub{font-family:var(--fd);font-size:.6rem;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:8px;position:relative;}
+.share-row{display:flex;gap:8px;margin-bottom:24px;}
+.share-btn{flex:1;padding:14px 10px;background:var(--black);color:var(--white);border:none;font-family:var(--fd);font-weight:800;font-size:.75rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}
+.share-btn:active{background:#333;}
+.share-btn.secondary{background:transparent;color:var(--black);border:1px solid var(--black);}
+.share-btn.secondary:active{background:var(--off);}
+
+/* ── JOIN SCREEN ── */
+#join{background:var(--white);}
+.code-input-wrap{display:flex;gap:0;border:1px solid var(--black);margin-bottom:6px;}
+.code-input{flex:1;padding:16px 14px;background:var(--off);border:none;outline:none;font-family:var(--fd);font-weight:900;font-size:1.8rem;letter-spacing:8px;text-transform:uppercase;color:var(--black);-webkit-appearance:none;border-radius:0;text-align:center;}
+.code-input::placeholder{color:var(--rule);font-size:1.4rem;letter-spacing:4px;font-weight:400;}
+.join-status{font-family:var(--fd);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;min-height:16px;margin-bottom:20px;}
+.join-status.ok{color:var(--green);}.join-status.err{color:var(--red);}.join-status.loading{color:var(--muted);}
+
+/* Game info preview (join screen) */
+.game-preview{background:var(--off);border:1px solid var(--rule);padding:16px;margin-bottom:20px;display:none;}
+.game-preview.show{display:block;}
+.gp-row{display:flex;justify-content:space-between;margin-bottom:6px;}
+.gp-row:last-child{margin-bottom:0;}
+.gp-key{font-family:var(--fd);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+.gp-val{font-family:var(--fd);font-weight:700;font-size:.78rem;letter-spacing:1px;text-transform:uppercase;}
+
+/* ── GAME SCREEN ── */
+#game{background:var(--white);position:relative;}
+#topbar{display:flex;align-items:stretch;height:calc(52px + var(--safe-top));padding-top:var(--safe-top);background:var(--white);border-bottom:2px solid var(--black);flex-shrink:0;z-index:30;}
+.tb-brand{display:flex;align-items:center;padding:0 14px;border-right:1px solid var(--rule);font-family:var(--fd);font-weight:900;font-size:.95rem;letter-spacing:3px;flex-shrink:0;}
+#scores{display:flex;flex:1;align-items:stretch;overflow:hidden;}
+.schip{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-right:1px solid var(--rule);gap:1px;padding:4px 2px;min-width:0;}
+.schip:last-child{border-right:none;}
+.sl{font-family:var(--fd);font-size:.42rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.sv{font-family:var(--fd);font-weight:900;font-size:1.15rem;line-height:1;}
+#timer-wrap{display:flex;align-items:center;padding:0 10px;border-left:1px solid var(--rule);border-right:1px solid var(--rule);flex-shrink:0;}
+#timer{font-family:var(--fd);font-weight:800;font-size:.82rem;letter-spacing:1px;color:var(--black);white-space:nowrap;}
+#timer.urgent{color:var(--red);}
+#hbtn{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;width:50px;background:transparent;border:none;border-left:1px solid var(--rule);cursor:pointer;flex-shrink:0;touch-action:manipulation;}
+#hbtn span{display:block;width:18px;height:1.5px;background:var(--black);transition:transform .25s ease,opacity .25s ease;transform-origin:center;}
+#hbtn.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg);}
+#hbtn.open span:nth-child(2){opacity:0;}
+#hbtn.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg);}
+
+#map-wrap{flex:1;position:relative;overflow:hidden;min-height:0;}
+#map{width:100%;height:100%;min-height:300px;}
+#fog-canvas{position:absolute;inset:0;pointer-events:none;z-index:5;opacity:.85;}
+
+#conn-status{position:absolute;top:10px;left:10px;z-index:20;display:flex;align-items:center;gap:5px;background:var(--white);border:1px solid var(--rule);padding:5px 10px;font-family:var(--fd);font-size:.58rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+#conn-dot{width:6px;height:6px;border-radius:50%;background:var(--rule);}
+#conn-dot.live{background:var(--green);animation:blink 2s infinite;}
+#conn-dot.err{background:var(--red);}
+
+#legend{position:absolute;bottom:calc(14px + var(--safe-bot));left:12px;background:var(--white);border:1px solid var(--black);padding:10px 14px;z-index:10;font-family:var(--fd);font-size:.6rem;}
+#legend h4{font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:7px;font-size:.5rem;}
+.li{display:flex;align-items:center;gap:7px;margin-bottom:3px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.ls{width:10px;height:10px;border:1px solid;flex-shrink:0;}
+
+#backdrop{display:none;position:absolute;inset:0;background:rgba(10,10,10,.5);z-index:40;}
+#backdrop.show{display:block;}
+#menu{position:absolute;top:0;right:0;width:min(82vw,300px);height:100%;background:var(--white);border-left:2px solid var(--black);z-index:50;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);overflow:hidden;}
+#menu.open{transform:translateX(0);}
+.menu-head{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:calc(52px + var(--safe-top));padding-top:var(--safe-top);border-bottom:2px solid var(--black);flex-shrink:0;}
+.menu-head-title{font-family:var(--fd);font-weight:900;font-size:.8rem;letter-spacing:4px;text-transform:uppercase;}
+.menu-x{width:32px;height:32px;background:var(--black);color:var(--white);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:700;touch-action:manipulation;}
+.menu-player{padding:16px;border-bottom:1px solid var(--rule);flex-shrink:0;background:var(--off);}
+.mp-callsign{font-family:var(--fd);font-weight:900;font-size:1.6rem;letter-spacing:-.5px;text-transform:uppercase;line-height:1;}
+.mp-team{font-family:var(--fd);font-weight:700;font-size:.65rem;letter-spacing:3px;text-transform:uppercase;margin-top:3px;}
+.mp-sector{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:4px;font-family:var(--fd);}
+.mp-code{font-size:.58rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:4px;font-family:var(--fd);}
+.msec{border-bottom:1px solid var(--rule);flex-shrink:0;}
+.msec-head{font-family:var(--fd);font-weight:800;font-size:.5rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);padding:8px 16px 4px;}
+#m-roster{max-height:130px;overflow-y:auto;}
+.prow{display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid var(--off);font-family:var(--fd);font-size:.75rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.prow .pn{flex:1;}.prow .ps{color:var(--muted);font-size:.6rem;}
+#m-flags{max-height:100px;overflow-y:auto;}
+.frow{display:flex;align-items:center;gap:7px;padding:6px 16px;border-bottom:1px solid var(--off);font-family:var(--fd);font-size:.72rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.fo{font-size:.6rem;margin-left:auto;font-weight:700;letter-spacing:2px;}
+#m-log-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#m-log{flex:1;overflow-y:auto;padding:8px 16px;font-size:.6rem;line-height:1.8;font-family:var(--fb);}
+.le{border-bottom:1px solid var(--off);padding:2px 0;}
+.le.cap{font-weight:600;color:var(--green);}
+.le.steal{font-weight:600;color:var(--gold);}
+.le.join{color:var(--muted);}
+.menu-foot{padding:12px 16px;padding-bottom:calc(12px + var(--safe-bot));display:flex;flex-direction:column;gap:8px;flex-shrink:0;border-top:2px solid var(--black);}
+.mfbtn{padding:12px 16px;border:1px solid var(--black);background:transparent;color:var(--black);font-family:var(--fd);font-weight:700;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;text-align:left;touch-action:manipulation;}
+.mfbtn:active{background:var(--black);color:var(--white);}
+.mfbtn.danger{border-color:var(--red);color:var(--red);}
+.mfbtn.danger:active{background:var(--red);color:var(--white);}
+
+#flag-modal{position:absolute;inset:0;background:rgba(10,10,10,.6);display:none;align-items:flex-end;z-index:60;padding-bottom:var(--safe-bot);}
+#flag-modal.show{display:flex;}
+.modal-sheet{background:var(--white);border-top:2px solid var(--black);padding:4px 20px 28px;width:100%;}
+.sheet-handle{width:32px;height:3px;background:var(--rule);margin:10px auto 20px;}
+.modal-eyebrow{font-family:var(--fd);font-size:.55rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.modal-sheet h3{font-family:var(--fd);font-weight:900;font-size:1.6rem;letter-spacing:-.5px;text-transform:uppercase;margin-bottom:4px;}
+.modal-status{font-size:.68rem;color:var(--muted);margin-bottom:20px;font-family:var(--fb);text-transform:uppercase;letter-spacing:1px;}
+.macts{display:flex;flex-direction:column;gap:8px;}
+.mact{padding:15px 18px;border:1.5px solid;background:transparent;font-family:var(--fd);font-weight:800;font-size:.85rem;letter-spacing:2px;text-transform:uppercase;cursor:pointer;width:100%;text-align:left;-webkit-appearance:none;touch-action:manipulation;}
+.mact.cap{border-color:var(--green);color:var(--green);}
+.mact.cap:active{background:var(--green);color:var(--white);}
+.mact.steal{border-color:var(--gold);color:var(--gold);}
+.mact.steal:active{background:var(--gold);color:var(--white);}
+.mact.cls{border-color:var(--rule);color:var(--muted);}
+.mact.cls:active{background:var(--off);}
+
+#toasts{position:absolute;top:calc(62px + var(--safe-top));left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;}
+.toast{background:var(--black);color:var(--white);padding:8px 18px;font-family:var(--fd);font-weight:700;font-size:.68rem;letter-spacing:2px;text-transform:uppercase;white-space:nowrap;animation:tin .22s ease,tout .35s ease 3s forwards;border-left:3px solid var(--white);}
+.toast.ok{border-left-color:var(--green);}
+.toast.warn{border-left-color:var(--gold);}
+@keyframes tin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes tout{from{opacity:1}to{opacity:0}}
+
+#gameover{display:none;position:absolute;inset:0;background:var(--white);z-index:80;flex-direction:column;align-items:flex-start;justify-content:center;padding:40px 28px;padding-bottom:calc(40px + var(--safe-bot));}
+#gameover.show{display:flex;}
+.go-eyebrow{font-family:var(--fd);font-size:.65rem;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.go-title{font-family:var(--fd);font-weight:900;font-size:clamp(3rem,14vw,4.5rem);text-transform:uppercase;line-height:.9;margin-bottom:8px;}
+.go-scores{font-family:var(--fd);font-size:.75rem;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:40px;}
+.go-btn{padding:18px 36px;background:var(--black);color:var(--white);border:none;font-family:var(--fd);font-weight:900;font-size:.9rem;letter-spacing:3px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;}
+
+::-webkit-scrollbar{display:none;}
+@keyframes notifIn{from{transform:translateY(-100%);opacity:0}to{transform:none;opacity:1}}
+@keyframes notifOut{from{opacity:1}to{opacity:0;transform:translateY(-20px)}}
+</style>
+</head>
+<body>
+
+<!-- ══ LANDING ══ -->
+<div id="landing" class="screen active">
+  <div class="landing-inner">
+    <div class="landing-top">
+      <div class="top-rule"></div>
+      <div class="big-title">CAPTURE<br>THE FLAG</div>
+      
+    </div>
+
+    <div class="landing-cta">
+      <button class="btn-primary" type="button" onclick="goTo('create')">
+        Create Game →
+      </button>
+      <div class="divider"><span>or</span></div>
+      <button class="btn-secondary" type="button" onclick="goTo('join')">
+        Join Game
+      </button>
+    </div>
+
+
+  </div>
+</div>
+
+<!-- ══ CREATE GAME ══ -->
+<div id="create" class="screen">
+  <div class="scroll-wrap">
+  <div class="inner">
+
+    <div class="top-rule"></div>
+    <div class="eyebrow">New Game</div>
+    <div class="big-title" style="font-size:clamp(2.4rem,12vw,3.8rem);margin-bottom:28px;">GAME<br>SETUP</div>
+
+    <!-- START LOCATION -->
+    <div class="cfg-section">
+      <label class="cfg-label">Start Location</label>
+      <div class="location-row">
+        <input class="location-input" id="create-loc" type="text" placeholder="Address or use GPS" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="gps-btn" type="button" onclick="getGPS('create')" ontouchend="getGPS('create');event.preventDefault()">⊕ GPS</button>
+      </div>
+      <div class="loc-status" id="create-loc-status">Enter an address or tap GPS</div>
+    </div>
+
+    <!-- MAP RADIUS -->
+    <div class="cfg-section">
+      <label class="cfg-label">Map Radius</label>
+      <div class="cfg-select-wrap">
+        <select class="cfg-select" id="create-radius">
+          <option value="0.25">1/4 Mile</option>
+          <option value="0.5">1/2 Mile</option>
+          <option value="1">1 Mile</option>
+          <option value="5">5 Miles</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- NUMBER OF TEAMS -->
+    <div class="cfg-section">
+      <label class="cfg-label">Number of Teams</label>
+      <div class="stepper-row">
+        <button class="step-btn" type="button" onclick="stepTeams(-1)" ontouchend="stepTeams(-1);event.preventDefault()">−</button>
+        <div class="step-display">
+          <div class="step-num" id="team-count-num">3</div>
+          <div class="step-text">Teams</div>
+          <div class="team-dots-preview" id="create-team-dots"></div>
+        </div>
+        <button class="step-btn" type="button" onclick="stepTeams(1)" ontouchend="stepTeams(1);event.preventDefault()">+</button>
+      </div>
+    </div>
+
+    <!-- GAME DURATION -->
+    <div class="cfg-section">
+      <label class="cfg-label">Game Duration</label>
+      <div class="cfg-select-wrap">
+        <select class="cfg-select" id="create-duration">
+          <option value="10">10 Minutes</option>
+          <option value="20" selected>20 Minutes</option>
+          <option value="30">30 Minutes</option>
+          <option value="60">1 Hour</option>
+          <option value="120">2 Hours</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- HOST CALL SIGN + TEAM -->
+    <div class="cfg-section">
+      <label class="cfg-label">Your Call Sign</label>
+      <input class="field-input" id="create-name" type="text" placeholder="WOLF" maxlength="16"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <span class="team-pick-label">Your Team</span>
+      <div class="team-strip" id="create-team-strip"></div>
+    </div>
+
+    <button class="btn-primary" type="button" onclick="createGame()">Create Game →</button>
+    <button class="btn-ghost" type="button" onclick="goTo('landing')">← Back</button>
+
+  </div>
+  </div>
+</div>
+
+<!-- ══ GAME CODE SHARE ══ -->
+<div id="code-share" class="screen">
+  <div class="scroll-wrap">
+  <div class="inner">
+
+    <div class="top-rule"></div>
+    <div class="eyebrow">Game Created</div>
+    <div class="big-title" style="font-size:clamp(2rem,10vw,3rem);margin-bottom:24px;">SHARE<br>YOUR CODE</div>
+
+    <div class="code-card">
+      <div class="code-eyebrow">Game Code</div>
+      <div class="code-value" id="share-code">——</div>
+      <div class="code-sub">Share this code with your players</div>
+    </div>
+
+    <div class="share-row">
+      <button class="share-btn" type="button" onclick="shareCode()">⬆ Share / Text</button>
+      <button class="share-btn secondary" type="button" onclick="copyCode()">⧉ Copy Code</button>
+    </div>
+
+    <div style="background:var(--off);border:1px solid var(--rule);padding:16px;margin-bottom:24px;">
+      <div id="share-game-details"></div>
+    </div>
+
+    <button class="btn-primary" type="button" onclick="enterGame()">Enter Game →</button>
+    <button class="btn-ghost" type="button" onclick="goTo('landing')">← Cancel</button>
+
+  </div>
+  </div>
+</div>
+
+<!-- ══ JOIN GAME ══ -->
+<div id="join" class="screen">
+  <div class="scroll-wrap">
+  <div class="inner">
+
+    <div class="top-rule"></div>
+    <div class="eyebrow">Join Existing Game</div>
+    <div class="big-title" style="font-size:clamp(2.4rem,12vw,3.8rem);margin-bottom:28px;">JOIN<br>GAME</div>
+
+    <!-- GAME CODE -->
+    <div class="cfg-section">
+      <label class="cfg-label">Game Code</label>
+      <div class="code-input-wrap">
+        <input class="code-input" id="join-code" type="text" placeholder="XXXX" maxlength="4"
+          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+          oninput="onCodeInput()">
+      </div>
+      <div class="join-status" id="join-status"></div>
+
+      <!-- Game preview (populated when code is valid) -->
+      <div class="game-preview" id="join-preview">
+        <div class="gp-row"><span class="gp-key">Location</span><span class="gp-val" id="jp-loc">—</span></div>
+        <div class="gp-row"><span class="gp-key">Radius</span><span class="gp-val" id="jp-radius">—</span></div>
+        <div class="gp-row"><span class="gp-key">Teams</span><span class="gp-val" id="jp-teams">—</span></div>
+        <div class="gp-row"><span class="gp-key">Duration</span><span class="gp-val" id="jp-duration">—</span></div>
+        <div class="gp-row"><span class="gp-key">Players</span><span class="gp-val" id="jp-players">—</span></div>
+      </div>
+    </div>
+
+    <!-- CALL SIGN + TEAM -->
+    <div class="cfg-section">
+      <label class="cfg-label">Your Call Sign</label>
+      <input class="field-input" id="join-name" type="text" placeholder="WOLF" maxlength="16"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <span class="team-pick-label">Your Team</span>
+      <div class="team-strip" id="join-team-strip"></div>
+    </div>
+
+    <button class="btn-primary" type="button" onclick="joinGame()">Join Game →</button>
+    <button class="btn-ghost" type="button" onclick="goTo('landing')">← Back</button>
+
+  </div>
+  </div>
+</div>
+
+<!-- ══ GAME ══ -->
+<div id="game" class="screen">
+  <div id="topbar">
+    <div class="tb-brand">CTF</div>
+    <div id="scores"></div>
+    <div id="timer-wrap"><div id="timer">--:--</div></div>
+    <button id="hbtn" onclick="toggleMenu()" type="button"><span></span><span></span><span></span></button>
+  </div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <canvas id="fog-canvas"></canvas>
+    <div id="conn-status"><div id="conn-dot"></div><span id="conn-label">CONNECTING</span></div>
+    <div id="legend"><h4>Sectors</h4><div id="legend-items"></div><div style="margin-top:8px;border-top:1px solid var(--rule);padding-top:6px"><div class="li"><div class="ls" style="background:#0a0a0a;border-color:#0a0a0a"></div><span>Fog</span></div><div class="li"><div class="ls" style="background:rgba(0,168,84,.15);border-color:#00a854"></div><span>Revealed</span></div></div></div>
+    <div id="toasts"></div>
+    <div id="flag-modal"><div class="modal-sheet"><div class="sheet-handle"></div><div class="modal-eyebrow">Flag Objective</div><h3 id="m-flag-name">Flag</h3><div class="modal-status" id="m-flag-status"></div><div class="macts" id="m-actions"></div></div></div>
+    <div id="gameover"><div class="go-eyebrow">Game Over</div><div class="go-title" id="go-title">WINNER</div><div class="go-scores" id="go-scores"></div><button class="go-btn" onclick="quitToHome()">Play Again →</button></div>
+    <div id="backdrop" onclick="closeMenu()"></div>
+    <div id="menu">
+      <div class="menu-head"><span class="menu-head-title">Command</span><button class="menu-x" onclick="closeMenu()" type="button">✕</button></div>
+      <div class="menu-player">
+        <div class="mp-callsign" id="mp-callsign">—</div>
+        <div class="mp-team" id="mp-team"></div>
+        <div class="mp-sector" id="mp-sector"></div>
+        <div class="mp-code" id="mp-code"></div>
+      </div>
+      <div class="msec"><div class="msec-head">Live Roster</div><div id="m-roster"></div></div>
+      <div class="msec"><div class="msec-head">Flags</div><div id="m-flags"></div></div>
+      <div id="m-log-wrap"><div class="msec"><div class="msec-head">Battle Log</div></div><div id="m-log"></div></div>
+      <div class="menu-foot">
+        <button class="mfbtn" onclick="closeMenu()" type="button">← Close Menu</button>
+        <button class="mfbtn danger" onclick="quitToHome()" type="button">✕ Quit to Home</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOST START GAME OVERLAY — outside map-wrap so overflow:hidden doesn't clip it -->
+  <div id="start-game-overlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,0.96);z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:32px;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);">
+    <div style="font-family:var(--fd);font-weight:700;font-size:.65rem;letter-spacing:4px;text-transform:uppercase;color:var(--muted);text-align:center;">Waiting for Players</div>
+    <div style="font-family:var(--fd);font-weight:900;font-size:clamp(2.4rem,12vw,3.5rem);text-transform:uppercase;line-height:.92;text-align:center;color:var(--black);">READY<br>TO<br>START?</div>
+    <div id="waiting-player-count" style="font-family:var(--fd);font-size:.75rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);text-align:center;">1 player in lobby</div>
+    <button type="button" onclick="hostStartGame()" ontouchend="hostStartGame();event.preventDefault()" style="width:100%;max-width:320px;padding:20px 24px;background:#C8102E;color:#ffffff;border:none;font-family:var(--fd);font-weight:900;font-size:1.1rem;letter-spacing:4px;text-transform:uppercase;cursor:pointer;touch-action:manipulation;-webkit-appearance:none;">
+      START GAME →
+    </button>
+    <div style="font-family:var(--fd);font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);text-align:center;margin-top:4px;">Game Code &nbsp;<strong id="overlay-game-code" style="color:var(--black);font-size:.9rem;letter-spacing:6px;"></strong></div>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   FIREBASE
+══════════════════════════════════════ */
+const FB_CFG={apiKey:"AIzaSyD8kNeWHZTX2WpYi-C3z7hzjNYzzHYhX88",authDomain:"capture-the-flag-2d8df.firebaseapp.com",databaseURL:"https://capture-the-flag-2d8df-default-rtdb.firebaseio.com",projectId:"capture-the-flag-2d8df",storageBucket:"capture-the-flag-2d8df.firebasestorage.app",messagingSenderId:"518905461212",appId:"1:518905461212:web:6e101d160568f498703719"};
+let db=null;
+function initFirebase(){try{if(typeof firebase==='undefined')return false;if(!firebase.apps||!firebase.apps.length)firebase.initializeApp(FB_CFG);db=firebase.database();return true;}catch(e){return false;}}
+window.addEventListener('load',function(){if(initFirebase())return;let t=0,r=setInterval(()=>{if(initFirebase()||++t>15)clearInterval(r);},400);});
+
+/* ══════════════════════════════════════
+   TEAM PALETTE
+══════════════════════════════════════ */
+const ALL_TEAMS=[
+  {id:'red',   hex:'#C8102E',label:'RED',   mapFill:'rgba(200,16,46,.1)',  mapStroke:'rgba(200,16,46,.6)' },
+  {id:'blue',  hex:'#1a5cff',label:'BLUE',  mapFill:'rgba(26,92,255,.1)',  mapStroke:'rgba(26,92,255,.6)' },
+  {id:'green', hex:'#00a854',label:'GREEN', mapFill:'rgba(0,168,84,.1)',   mapStroke:'rgba(0,168,84,.6)'  },
+  {id:'orange',hex:'#f07800',label:'ORANGE',mapFill:'rgba(240,120,0,.1)',  mapStroke:'rgba(240,120,0,.6)' },
+  {id:'purple',hex:'#8b2be2',label:'PURPLE',mapFill:'rgba(139,43,226,.1)', mapStroke:'rgba(139,43,226,.6)'},
+  {id:'gold',  hex:'#c8a000',label:'GOLD',  mapFill:'rgba(200,160,0,.1)',  mapStroke:'rgba(200,160,0,.6)' },
+];
+
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+const CAPTURE_M=7.62, REVEAL_M=15.24;
+
+// Config state (home screens)
+let cfgNumTeams=3, cfgMyTeamCreate=null, cfgMyTeamJoin=null, cfgCenter=null;
+
+// Runtime game state
+let GAME_CODE='', CENTER={lat:43.61667,lng:-116.20472}, RADIUS_M=0.25*1609.34;
+let NUM_TEAMS=3, ACTIVE_TEAMS=[], SECTOR_ASSIGNMENT=[], GAME_SECS=20*60;
+let map,fogCanvas,pMarkers={},fMarkers={},homeBaseMarkers={};
+let me=null,myTeamId=null,myName=null,myId=null;
+let activeModal=null,timerInt=null,watchId=null,codeCheckTimer=null;
+let revealed={};
+let GS={players:{},flags:{},scores:{},timeLeft:GAME_SECS};
+let isHost=false;
+
+const playersRef =()=>db.ref(`games/${GAME_CODE}/players`);
+const flagsRef   =()=>db.ref(`games/${GAME_CODE}/flags`);
+const scoresRef  =()=>db.ref(`games/${GAME_CODE}/scores`);
+const revealedRef=()=>db.ref(`games/${GAME_CODE}/revealed`);
+const metaRef    =()=>db.ref(`games/${GAME_CODE}/meta`);
+
+/* ══════════════════════════════════════
+   SCREEN NAV
+══════════════════════════════════════ */
+function goTo(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+}
+
+/* ══════════════════════════════════════
+   GEOMETRY
+══════════════════════════════════════ */
+const toRad=d=>d*Math.PI/180,toDeg=r=>r*180/Math.PI;
+function offsetLL(c,bear,m){const R=6371000,d=m,b=toRad(bear),φ1=toRad(c.lat),λ1=toRad(c.lng),φ2=Math.asin(Math.sin(φ1)*Math.cos(d/R)+Math.cos(φ1)*Math.sin(d/R)*Math.cos(b)),λ2=λ1+Math.atan2(Math.sin(b)*Math.sin(d/R)*Math.cos(φ1),Math.cos(d/R)-Math.sin(φ1)*Math.sin(φ2));return{lat:toDeg(φ2),lng:toDeg(λ2)};}
+function distM(a,b){const R=6371000,dφ=toRad(b.lat-a.lat),dλ=toRad(b.lng-a.lng),s=Math.sin(dφ/2)**2+Math.cos(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.sin(dλ/2)**2;return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}
+function bearTo(a,b){const dλ=toRad(b.lng-a.lng),y=Math.sin(dλ)*Math.cos(toRad(b.lat)),x=Math.cos(toRad(a.lat))*Math.sin(toRad(b.lat))-Math.sin(toRad(a.lat))*Math.cos(toRad(b.lat))*Math.cos(dλ);return(toDeg(Math.atan2(y,x))+360)%360;}
+function sectorOfPt(p){if(distM(CENTER,p)>RADIUS_M)return -1;const a=bearTo(CENTER,p),slice=360/NUM_TEAMS;return Math.floor(((a%360)+360)%360/slice)%NUM_TEAMS;}
+function buildSectorPoly(si,n=52){const slice=360/NUM_TEAMS,sa=si*slice-90,ea=sa+slice,pts=[CENTER];for(let i=0;i<=n;i++)pts.push(offsetLL(CENTER,sa+(ea-sa)*(i/n),RADIUS_M));return pts;}
+function flagBearing(si){const slice=360/NUM_TEAMS;return si*slice-90+slice/2;}
+// Home base is at 95% radius, dead centre of sector
+function homeBaseBearing(si){return flagBearing(si);}
+function homeBasePos(si){return offsetLL(CENTER,homeBaseBearing(si),RADIUS_M*0.95);}
+function uid(){return Math.random().toString(36).substr(2,9)+Date.now().toString(36);}
+
+/* ══════════════════════════════════════
+   GAME CODE GENERATION
+══════════════════════════════════════ */
+function generateCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code='';for(let i=0;i<4;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+/* ══════════════════════════════════════
+   GPS
+══════════════════════════════════════ */
+function getGPS(context){
+  const inputId=context+'-loc', statusId=context+'-loc-status';
+  const statusEl=document.getElementById(statusId);
+  statusEl.textContent='Acquiring GPS...'; statusEl.className='loc-status';
+  if(!navigator.geolocation){statusEl.textContent='Not supported';statusEl.className='loc-status err';return;}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    cfgCenter={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    document.getElementById(inputId).value=cfgCenter.lat.toFixed(5)+', '+cfgCenter.lng.toFixed(5);
+    statusEl.textContent='✓ GPS location acquired'; statusEl.className='loc-status ok';
+  },err=>{statusEl.textContent='GPS error: '+err.message;statusEl.className='loc-status err';},{enableHighAccuracy:true,timeout:10000});
+}
+
+async function resolveLocation(inputId, statusId){
+  const input=document.getElementById(inputId).value.trim();
+  const statusEl=document.getElementById(statusId);
+  if(!input){cfgCenter={lat:43.61667,lng:-116.20472};statusEl.textContent='Using default: 1020 W Main St, Boise';statusEl.className='loc-status ok';return;}
+  const cm=input.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+  if(cm){cfgCenter={lat:parseFloat(cm[1]),lng:parseFloat(cm[2])};return;}
+  if(typeof google==='undefined'||!google.maps){cfgCenter={lat:43.61667,lng:-116.20472};return;}
+  return new Promise(resolve=>{
+    new google.maps.Geocoder().geocode({address:input},(results,status)=>{
+      if(status==='OK'&&results[0]){cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};statusEl.textContent='✓ '+results[0].formatted_address;statusEl.className='loc-status ok';}
+      else{cfgCenter={lat:43.61667,lng:-116.20472};statusEl.textContent='Address not found — using default';statusEl.className='loc-status err';}
+      resolve();
+    });
+  });
+}
+
+/* ══════════════════════════════════════
+   TEAM COUNT STEPPER
+══════════════════════════════════════ */
+function stepTeams(delta){
+  cfgNumTeams=Math.min(6,Math.max(2,cfgNumTeams+delta));
+  document.getElementById('team-count-num').textContent=cfgNumTeams;
+  updateCreateDots();
+  buildTeamStrip('create',cfgMyTeamCreate);
+  // Reset join strip if teams changed
+  buildTeamStrip('join',cfgMyTeamJoin);
+}
+
+function updateCreateDots(){
+  const el=document.getElementById('create-team-dots');
+  el.innerHTML=ALL_TEAMS.slice(0,cfgNumTeams).map(t=>`<div class="tdp" style="background:${t.hex}"></div>`).join('');
+}
+
+/* ══════════════════════════════════════
+   TEAM STRIP BUILDER
+══════════════════════════════════════ */
+function buildTeamStrip(context, selectedTeamId){
+  const stripEl=document.getElementById(context+'-team-strip');
+  const teams=ALL_TEAMS.slice(0,cfgNumTeams);
+  if(selectedTeamId&&!teams.find(t=>t.id===selectedTeamId)){
+    if(context==='create')cfgMyTeamCreate=null;
+    else cfgMyTeamJoin=null;
+    selectedTeamId=null;
+  }
+  stripEl.innerHTML=teams.map(t=>{
+    const sel=selectedTeamId===t.id;
+    return`<button class="tsb${sel?' sel':''}" id="${context}-tsb-${t.id}" type="button"
+      style="${sel?`background:${t.hex};border-right:1px solid ${t.hex};`:''}"
+      data-ctx="${context}" data-team="${t.id}"
+      onclick="selTeam('${context}','${t.id}')"
+      ontouchend="selTeam('${context}','${t.id}');event.preventDefault()">
+      <span class="tdot" style="${sel?'background:#fff;border-color:#fff!important;':`border-color:${t.hex};`}"></span>
+      <span style="color:${sel?'#fff':t.hex}">${t.label}</span>
+    </button>`;
+  }).join('');
+  // Re-wire listeners
+  teams.forEach(t=>{
+    const btn=document.getElementById(`${context}-tsb-${t.id}`);
+    if(!btn)return;
+    btn.addEventListener('touchend',e=>{e.preventDefault();selTeam(context,t.id);},{passive:false});
+    btn.addEventListener('click',()=>selTeam(context,t.id));
+  });
+}
+
+function selTeam(context,teamId){
+  if(context==='create')cfgMyTeamCreate=teamId;
+  else cfgMyTeamJoin=teamId;
+  buildTeamStrip(context,teamId);
+}
+
+/* ══════════════════════════════════════
+   CREATE GAME
+══════════════════════════════════════ */
+async function createGame(){
+  const name=document.getElementById('create-name').value.trim();
+  if(!name){alert('Enter a call sign');return;}
+  if(!cfgMyTeamCreate){alert('Select your team');return;}
+
+  await resolveLocation('create-loc','create-loc-status');
+
+  GAME_CODE=generateCode();
+  // Keep trying if code already exists
+  if(db){
+    let attempts=0;
+    while(attempts<10){
+      const snap=await db.ref(`games/${GAME_CODE}`).once('value');
+      if(!snap.exists())break;
+      GAME_CODE=generateCode();
+      attempts++;
+    }
+  }
+
+  NUM_TEAMS=cfgNumTeams;
+  ACTIVE_TEAMS=ALL_TEAMS.slice(0,NUM_TEAMS);
+  RADIUS_M=parseFloat(document.getElementById('create-radius').value)*1609.34;
+  GAME_SECS=parseInt(document.getElementById('create-duration').value)*60;
+  CENTER=cfgCenter||{lat:43.61667,lng:-116.20472};
+  SECTOR_ASSIGNMENT=[...ACTIVE_TEAMS.map(t=>t.id)].sort(()=>Math.random()-.5);
+  myName=name.toUpperCase().substring(0,16);
+  myTeamId=cfgMyTeamCreate;
+  myId=uid();
+  isHost=true;
+  GS.scores={};ACTIVE_TEAMS.forEach(t=>{GS.scores[t.id]=0;});
+  revealed={};ACTIVE_TEAMS.forEach(t=>{revealed[t.id]=[];});
+
+  // Write game to Firebase
+  if(db){
+    const radiusMi=parseFloat(document.getElementById('create-radius').value);
+    const durMin=parseInt(document.getElementById('create-duration').value);
+    const flags={};
+    ACTIVE_TEAMS.forEach((t,i)=>{
+      ['a','b'].forEach(letter=>{
+        const id='flag-'+t.id+'-'+letter;
+        const pos=randomPosInSector(i);
+        flags[id]={id,name:t.label+' Flag '+letter.toUpperCase(),sector:i,teamColor:t.id,
+          lat:pos.lat,lng:pos.lng,
+          ownedBy:null,carriedBy:null,carriedByName:null,status:'hidden'};
+      });
+    });
+    const initScores={};ACTIVE_TEAMS.forEach(t=>{initScores[t.id]=0;});
+    const initRev={};ACTIVE_TEAMS.forEach(t=>{initRev[t.id]={};});
+    await db.ref(`games/${GAME_CODE}`).set({
+      meta:{
+        code:GAME_CODE,numTeams:NUM_TEAMS,radiusMi,durMin,
+        centerLat:CENTER.lat,centerLng:CENTER.lng,
+        sectorAssignment:SECTOR_ASSIGNMENT,
+        startedAt:Date.now(),timeLeft:GAME_SECS,
+        status:'waiting'
+      },
+      flags,scores:initScores,revealed:initRev,players:{}
+    });
+  }
+
+  // Show code share screen
+  document.getElementById('share-code').textContent=GAME_CODE;
+  const radiusMi=parseFloat(document.getElementById('create-radius').value);
+  const durMin=parseInt(document.getElementById('create-duration').value);
+  const radiusLabel={0.25:'1/4 Mile',0.5:'1/2 Mile',1:'1 Mile',5:'5 Miles'}[radiusMi]||radiusMi+' mi';
+  document.getElementById('share-game-details').innerHTML=`
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between"><span style="font-family:var(--fd);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Teams</span><span style="font-family:var(--fd);font-weight:700;font-size:.78rem;letter-spacing:1px;text-transform:uppercase">${NUM_TEAMS} Teams</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="font-family:var(--fd);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Radius</span><span style="font-family:var(--fd);font-weight:700;font-size:.78rem;letter-spacing:1px;text-transform:uppercase">${radiusLabel}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="font-family:var(--fd);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Duration</span><span style="font-family:var(--fd);font-weight:700;font-size:.78rem;letter-spacing:1px;text-transform:uppercase">${durMin} Min</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="font-family:var(--fd);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Host</span><span style="font-family:var(--fd);font-weight:700;font-size:.78rem;letter-spacing:1px;text-transform:uppercase">${myName}</span></div>
+    </div>`;
+  goTo('code-share');
+}
+
+function shareCode(){
+  const code=document.getElementById('share-code').textContent;
+  const msg=`Join my Capture The Flag game!\n\nGame Code: ${code}\n\nOpen the game and tap "Join Game" to enter.`;
+  if(navigator.share){navigator.share({title:'Capture The Flag',text:msg}).catch(()=>{});}
+  else{copyCode();}
+}
+
+function copyCode(){
+  const code=document.getElementById('share-code').textContent;
+  navigator.clipboard?.writeText(code).then(()=>toast('Code copied!','ok')).catch(()=>toast('Code: '+code,'ok'));
+  toast('Code '+code+' copied!','ok');
+}
+
+function enterGame(){
+  me={id:myId,name:myName,team:myTeamId,lastPos:null};
+  updateMenuBadge();
+  saveSession();
+  goTo('game');
+  buildScoreBar();
+  GS.timeLeft = GAME_SECS;
+  setTimerDisplay(GS.timeLeft);
+  // Show Start Game overlay immediately — host only
+  if(isHost){
+    const overlay = document.getElementById('start-game-overlay');
+    const codeEl  = document.getElementById('overlay-game-code');
+    const countEl = document.getElementById('waiting-player-count');
+    if(overlay){ overlay.style.display='flex'; }
+    if(codeEl){  codeEl.textContent = GAME_CODE; }
+    if(countEl){ countEl.textContent = '1 player in lobby'; }
+  }
+  initMapOnce();
+}
+
+/* ══════════════════════════════════════
+   JOIN GAME
+══════════════════════════════════════ */
+let joinedGameMeta=null;
+
+function onCodeInput(){
+  const code=document.getElementById('join-code').value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  document.getElementById('join-code').value=code;
+  if(codeCheckTimer)clearTimeout(codeCheckTimer);
+  document.getElementById('join-preview').classList.remove('show');
+  document.getElementById('join-status').textContent='';
+  document.getElementById('join-status').className='join-status';
+  if(code.length===4){
+    document.getElementById('join-status').textContent='Looking up game...';
+    document.getElementById('join-status').className='join-status loading';
+    codeCheckTimer=setTimeout(()=>lookupCode(code),400);
+  }
+}
+
+async function lookupCode(code){
+  const statusEl=document.getElementById('join-status');
+  if(!db){statusEl.textContent='Firebase not connected';statusEl.className='join-status err';return;}
+  try{
+    const snap=await db.ref(`games/${code}/meta`).once('value');
+    const meta=snap.val();
+    if(!meta){statusEl.textContent='Game not found. Check your code.';statusEl.className='join-status err';joinedGameMeta=null;return;}
+
+    joinedGameMeta=meta;
+    GAME_CODE=code;
+
+    // Populate preview
+    statusEl.textContent='✓ Game found!';statusEl.className='join-status ok';
+    const radiusLabel={0.25:'1/4 Mile',0.5:'1/2 Mile',1:'1 Mile',5:'5 Miles'}[meta.radiusMi]||meta.radiusMi+' mi';
+    document.getElementById('jp-loc').textContent=meta.centerLat?meta.centerLat.toFixed(4)+', '+meta.centerLng.toFixed(4):'Custom';
+    document.getElementById('jp-radius').textContent=radiusLabel;
+    document.getElementById('jp-teams').textContent=meta.numTeams+' Teams';
+    document.getElementById('jp-duration').textContent=meta.durMin+' Min';
+
+    // Count online players
+    const pSnap=await db.ref(`games/${code}/players`).once('value');
+    const players=Object.values(pSnap.val()||{}).filter(p=>p.online!==false);
+    document.getElementById('jp-players').textContent=players.length+' online';
+
+    document.getElementById('join-preview').classList.add('show');
+
+    // Build team strip from game config
+    cfgNumTeams=meta.numTeams||3;
+    document.getElementById('team-count-num').textContent=cfgNumTeams;
+    buildTeamStrip('join',cfgMyTeamJoin);
+
+  }catch(e){statusEl.textContent='Error: '+e.message;statusEl.className='join-status err';}
+}
+
+async function joinGame(){
+  const name=document.getElementById('join-name').value.trim();
+  if(!name){alert('Enter a call sign');return;}
+  if(!cfgMyTeamJoin){alert('Select your team');return;}
+  if(!joinedGameMeta){alert('Enter a valid game code first');return;}
+
+  // Apply game settings from host
+  const meta=joinedGameMeta;
+  NUM_TEAMS=meta.numTeams||3;
+  ACTIVE_TEAMS=ALL_TEAMS.slice(0,NUM_TEAMS);
+  RADIUS_M=(meta.radiusMi||0.25)*1609.34;
+  GAME_SECS=(meta.durMin||20)*60;
+  GS.timeLeft=meta.timeLeft||GAME_SECS;
+  CENTER={lat:meta.centerLat||43.61667,lng:meta.centerLng||-116.20472};
+  SECTOR_ASSIGNMENT=meta.sectorAssignment||[...ACTIVE_TEAMS.map(t=>t.id)];
+  // Rebuild home base positions from meta (or recalculate if missing)
+  if(meta.homeBases){
+    window._homeBases=meta.homeBases;
+  }
+
+  myName=name.toUpperCase().substring(0,16);
+  myTeamId=cfgMyTeamJoin;
+  myId=uid();
+  isHost=false;
+  me={id:myId,name:myName,team:myTeamId,lastPos:null};
+  GS.scores={};ACTIVE_TEAMS.forEach(t=>{GS.scores[t.id]=0;});
+  revealed={};ACTIVE_TEAMS.forEach(t=>{revealed[t.id]=[];});
+
+  updateMenuBadge();
+  saveSession();
+  goTo('game');
+  buildScoreBar();
+  // Set timer display immediately from configured duration
+  setTimerDisplay(GS.timeLeft);
+  initMapOnce();
+}
+
+/* ══════════════════════════════════════
+   GAME INIT
+══════════════════════════════════════ */
+function updateMenuBadge(){
+  const teamObj=ALL_TEAMS.find(t=>t.id===myTeamId);
+  document.getElementById('mp-callsign').textContent=myName;
+  const mt=document.getElementById('mp-team');
+  mt.textContent=(teamObj?.label||myTeamId)+' TEAM';
+  mt.style.color=teamObj?.hex||'var(--black)';
+  document.getElementById('mp-code').textContent='Game: '+GAME_CODE;
+}
+
+function buildScoreBar(){
+  const el=document.getElementById('scores');
+  el.innerHTML=ACTIVE_TEAMS.map(t=>`<div class="schip"><span class="sl">${t.label.substring(0,3)}</span><span class="sv" id="sc-${t.id}" style="color:${t.hex}">0</span></div>`).join('');
+}
+
+function initMapOnce(){
+  if(typeof google!=='undefined'&&google.maps){bootMap();return;}
+  let tries=0;
+  const wait=setInterval(()=>{if(typeof google!=='undefined'&&google.maps){clearInterval(wait);bootMap();}else if(++tries>25){clearInterval(wait);toast('Map failed — host on https://','warn');}},300);
+}
+
+function bootMap(){
+  const zoom=RADIUS_M/1609.34<=0.25?16:RADIUS_M/1609.34<=0.5?15:RADIUS_M/1609.34<=1?14:11;
+  map=new google.maps.Map(document.getElementById('map'),{
+    center:CENTER,zoom,mapTypeId:'roadmap',
+    styles:[
+      {elementType:'geometry',stylers:[{color:'#f8f8f6'}]},
+      {elementType:'labels.text.fill',stylers:[{color:'#6b6b6b'}]},
+      {elementType:'labels.text.stroke',stylers:[{color:'#f8f8f6'}]},
+      {featureType:'road',elementType:'geometry',stylers:[{color:'#ffffff'}]},
+      {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#e8e8e4'}]},
+      {featureType:'road',elementType:'labels.text.fill',stylers:[{color:'#8a8a8a'}]},
+      {featureType:'road.highway',elementType:'geometry',stylers:[{color:'#f0f0ec'}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#d4e4f0'}]},
+      {featureType:'poi',stylers:[{visibility:'off'}]},
+      {featureType:'transit',stylers:[{visibility:'off'}]},
+      {featureType:'landscape',elementType:'geometry',stylers:[{color:'#f4f4f0'}]},
+    ],
+    disableDefaultUI:true,zoomControl:true,gestureHandling:'greedy',
+  });
+  startGameSession();
+}
+
+async function startGameSession(){
+  setConn('connecting');
+  if(!db){const ok=initFirebase();if(!ok)setConn('err');}
+
+  drawMapLayers();
+  buildLegend();
+  initFog();
+
+  if(db){
+    // Register this player
+    const pRef=db.ref(`games/${GAME_CODE}/players/${myId}`);
+    pRef.set({id:myId,name:myName,team:myTeamId,lat:null,lng:null,sector:-1,online:true});
+    pRef.onDisconnect().update({online:false});
+
+    listenPlayers();
+    listenFlags();
+    listenScores();
+    listenRevealed();
+    listenNotifications();
+    db.ref('.info/connected').on('value',snap=>setConn(snap.val()?'live':'err'));
+
+    // Sync timer from Firebase
+    const metaSnap=await metaRef().once('value');
+    const meta=metaSnap.val();
+    if(meta&&meta.timeLeft)GS.timeLeft=meta.timeLeft;
+  } else {
+    // Solo: create local flags (2 per sector)
+    ACTIVE_TEAMS.forEach((t,i)=>{
+      ['a','b'].forEach(letter=>{
+        const id='flag-'+t.id+'-'+letter;
+        const pos=randomPosInSector(i);
+        GS.flags[id]={id,name:t.label+' Flag '+letter.toUpperCase(),sector:i,teamColor:t.id,
+          lat:pos.lat,lng:pos.lng,
+          ownedBy:null,carriedBy:null,carriedByName:null,status:'hidden'};
+      });
+    });
+    placeLocalFlagMarkers();
+    renderFlags();
+  }
+
+  startTracking();
+  // Set timer display from actual configured duration
+  setTimerDisplay(GS.timeLeft);
+
+  if(!isHost){
+    // Joiners: wait for host to start
+    waitForGameStart();
+  }
+  // Host overlay was already shown in enterGame() — nothing to do here
+
+  toast('Deployed · '+myName,'ok');
+  log(myName+' joined as '+myTeamId.toUpperCase(),'join');
+}
+
+/* ══════════════════════════════════════
+   MAP LAYERS
+══════════════════════════════════════ */
+function drawMapLayers(){
+  new google.maps.Circle({map,center:CENTER,radius:RADIUS_M,strokeColor:'#0a0a0a',strokeOpacity:.08,strokeWeight:22,fillOpacity:0});
+  new google.maps.Circle({map,center:CENTER,radius:RADIUS_M,strokeColor:'#0a0a0a',strokeOpacity:.85,strokeWeight:2.5,fillOpacity:0});
+  for(let i=0;i<NUM_TEAMS;i++){
+    const t=ALL_TEAMS.find(x=>x.id===SECTOR_ASSIGNMENT[i]);
+    if(!t)continue;
+    new google.maps.Polygon({map,paths:buildSectorPoly(i),strokeColor:t.mapStroke,strokeOpacity:.4,strokeWeight:1,fillColor:t.mapFill,fillOpacity:1});
+    const slice=360/NUM_TEAMS;
+    new google.maps.Polyline({map,path:[CENTER,offsetLL(CENTER,i*slice-90,RADIUS_M)],strokeColor:'#0a0a0a',strokeOpacity:.12,strokeWeight:1});
+  }
+  new google.maps.Marker({map,position:CENTER,icon:{path:google.maps.SymbolPath.CIRCLE,scale:7,fillColor:'#0a0a0a',fillOpacity:1,strokeColor:'#ffffff',strokeWeight:2},zIndex:100});
+
+  // Draw home base markers — one per sector, at 95% radius, visible to ALL players
+  for(let i=0;i<NUM_TEAMS;i++){
+    const teamId=SECTOR_ASSIGNMENT[i];
+    const teamObj=ALL_TEAMS.find(t=>t.id===teamId);
+    const pos=homeBasePos(i);
+
+    // Outer glow ring
+    new google.maps.Circle({
+      map,center:pos,radius:8,
+      strokeColor:teamObj.hex,strokeOpacity:.5,strokeWeight:12,fillOpacity:0,
+    });
+    // Solid inner circle
+    new google.maps.Circle({
+      map,center:pos,radius:8,
+      strokeColor:teamObj.hex,strokeOpacity:1,strokeWeight:2,
+      fillColor:teamObj.hex,fillOpacity:.25,
+    });
+
+    // Flag icon marker on top
+    const hbMarker=new google.maps.Marker({
+      map,position:pos,zIndex:300,
+      icon:{
+        path:'M -12,-12 L 12,-12 L 12,12 L -12,12 Z',  // square base
+        fillColor:teamObj.hex,fillOpacity:.15,
+        strokeColor:teamObj.hex,strokeWeight:2,
+        scale:1,anchor:new google.maps.Point(0,0),
+      },
+      label:{
+        text:'⌂',
+        color:teamObj.hex,
+        fontSize:'18px',
+        fontWeight:'900',
+      },
+      title:teamObj.label+' Home Base',
+    });
+    homeBaseMarkers[teamId]=hbMarker;
+  }
+}
+
+function buildLegend(){
+  const el=document.getElementById('legend-items');
+  el.innerHTML=ACTIVE_TEAMS.map((t,i)=>{
+    const sTeam=ALL_TEAMS.find(x=>x.id===SECTOR_ASSIGNMENT[i]);
+    return`<div class="li"><div class="ls" style="background:${sTeam?.mapFill||'transparent'};border-color:${sTeam?.hex||'#ccc'}"></div><span>S${i+1} · ${SECTOR_ASSIGNMENT[i]?.toUpperCase()}</span></div>`;
+  }).join('')+`<div class="li" style="margin-top:4px;border-top:1px solid var(--rule);padding-top:4px"><span style="font-size:.85rem;margin-right:4px">⌂</span><span>Home Base</span></div>`;
+}
+
+/* ══════════════════════════════════════
+   FIREBASE LISTENERS
+══════════════════════════════════════ */
+function listenPlayers(){
+  if(!db)return;
+  playersRef().on('value',snap=>{
+    const all=snap.val()||{};GS.players=all;
+    Object.entries(all).forEach(([id,p])=>{
+      if(id===myId)return;
+      if(!p.online){removePlayerMarker(id);return;}
+      if(p.lat&&p.lng){updatePlayerMarker(id,{lat:p.lat,lng:p.lng},p.team,p.name,false);if(p.team===myTeamId)revealLocal(myTeamId,{lat:p.lat,lng:p.lng});}
+    });
+    renderRoster();
+    // Update lobby player count for host
+    const online=Object.values(all).filter(p=>p.online!==false);
+    const countEl=document.getElementById('waiting-player-count');
+    if(countEl)countEl.textContent=online.length+' player'+(online.length===1?'':'s')+' in lobby';
+  });
+}
+
+function listenFlags(){
+  if(!db)return;
+  flagsRef().on('value',snap=>{
+    const flags=snap.val()||{};
+    GS.flags=flags;
+    Object.entries(flags).forEach(([id,f])=>{
+      if(!f.lat||!f.lng)return;
+      const pos={lat:f.lat,lng:f.lng};
+      if(!fMarkers[id]){
+        const mk=new google.maps.Marker({
+          map:null, // hidden by default — visibility managed by canSeeFlag
+          position:pos,
+          icon:flagIcon(f.teamColor,!!f.carriedBy),
+          zIndex:50,
+        });
+        mk.addListener('click',()=>openFlagModal(id));
+        fMarkers[id]={marker:mk,pos};
+      }
+    });
+    updateAllFlagVisibility();
+    renderFlags();
+    // Check if I'm carrying a flag — update its position
+    updateCarriedFlagPos();
+  });
+}
+
+function listenScores(){
+  if(!db)return;
+  scoresRef().on('value',snap=>{
+    const s=snap.val()||{};GS.scores=s;
+    ACTIVE_TEAMS.forEach(t=>{const el=document.getElementById('sc-'+t.id);if(el)el.textContent=s[t.id]||0;});
+  });
+}
+
+function listenRevealed(){
+  if(!db)return;
+  // Watch our entire team's revealed bucket — all teammates push here
+  revealedRef().child(myTeamId).on('value',snap=>{
+    const pts=snap.val()||{};
+    Object.values(pts).forEach(pt=>{
+      if(pt&&pt.lat&&pt.lng) revealLocal(myTeamId,pt);
+    });
+    // After syncing all teammate reveals, update fog and flag visibility
+    redrawFog();
+    updateAllFlagVisibility();
+  });
+}
+
+function placeLocalFlagMarkers(){
+  Object.values(GS.flags).forEach(f=>{
+    if(!f.lat||!f.lng)return;
+    const pos={lat:f.lat,lng:f.lng};
+    const mk=new google.maps.Marker({
+      map:null,
+      position:pos,
+      icon:flagIcon(f.teamColor,false),
+      zIndex:50,
+    });
+    mk.addListener('click',()=>openFlagModal(f.id));
+    fMarkers[f.id]={marker:mk,pos};
+  });
+  updateAllFlagVisibility();
+}
+
+/* ══════════════════════════════════════
+   FOG
+══════════════════════════════════════ */
+function initFog(){
+  fogCanvas=document.getElementById('fog-canvas');
+  const wrap=document.getElementById('map-wrap');
+  function resize(){fogCanvas.width=wrap.clientWidth;fogCanvas.height=wrap.clientHeight;redrawFog();}
+  resize();window.addEventListener('resize',resize);
+  map.addListener('idle',redrawFog);map.addListener('center_changed',redrawFog);map.addListener('zoom_changed',redrawFog);
+}
+function llToPx(lat,lng){const proj=map.getProjection();if(!proj)return null;const bounds=map.getBounds();if(!bounds)return null;const ne=bounds.getNorthEast(),sw=bounds.getSouthWest(),pt=proj.fromLatLngToPoint(new google.maps.LatLng(lat,lng)),nePt=proj.fromLatLngToPoint(ne),swPt=proj.fromLatLngToPoint(sw),W=document.getElementById('map').clientWidth,H=document.getElementById('map').clientHeight;return{x:(pt.x-swPt.x)/(nePt.x-swPt.x)*W,y:(pt.y-nePt.y)/(swPt.y-nePt.y)*H};}
+function mToPx(m){return m/(156543.03392*Math.cos(toRad(CENTER.lat))/Math.pow(2,map.getZoom()));}
+function redrawFog(){
+  if(!fogCanvas||!map||!me)return;
+  const ctx=fogCanvas.getContext('2d');ctx.clearRect(0,0,fogCanvas.width,fogCanvas.height);
+  for(let i=0;i<NUM_TEAMS;i++){if(SECTOR_ASSIGNMENT[i]===myTeamId)continue;drawSectorFog(ctx,i);}
+}
+function drawSectorFog(ctx,si){
+  const slice=360/NUM_TEAMS,sa=si*slice-90,ea=sa+slice,n=64;
+  const cPx=llToPx(CENTER.lat,CENTER.lng);if(!cPx)return;
+  const poly=[cPx];
+  for(let i=0;i<=n;i++){const a=sa+(ea-sa)*(i/n),ll=offsetLL(CENTER,a,RADIUS_M),px=llToPx(ll.lat,ll.lng);if(px)poly.push(px);}
+  ctx.save();ctx.beginPath();ctx.moveTo(poly[0].x,poly[0].y);for(let i=1;i<poly.length;i++)ctx.lineTo(poly[i].x,poly[i].y);ctx.closePath();ctx.fillStyle='rgba(10,10,10,0.78)';ctx.fill();
+  const rPx=mToPx(REVEAL_M);ctx.globalCompositeOperation='destination-out';
+  for(const pt of(revealed[myTeamId]||[])){if(sectorOfPt(pt)!==si)continue;const px=llToPx(pt.lat,pt.lng);if(!px)continue;const g=ctx.createRadialGradient(px.x,px.y,0,px.x,px.y,rPx);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.65,'rgba(0,0,0,.9)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.beginPath();ctx.arc(px.x,px.y,rPx,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();}
+  ctx.globalCompositeOperation='source-over';ctx.restore();
+}
+function revealLocal(teamId,ll){const s=sectorOfPt(ll);if(s<0)return;if(SECTOR_ASSIGNMENT[s]===teamId)return;if(!revealed[teamId])revealed[teamId]=[];for(const p of revealed[teamId])if(distM(p,ll)<REVEAL_M*.55)return;revealed[teamId].push(ll);if(teamId===myTeamId){redrawFog();updateAllFlagVisibility();}}
+function revealAndSync(ll){const s=sectorOfPt(ll);if(s<0)return;if(SECTOR_ASSIGNMENT[s]===myTeamId)return;if(!revealed[myTeamId])revealed[myTeamId]=[];for(const p of revealed[myTeamId])if(distM(p,ll)<REVEAL_M*.55)return;revealed[myTeamId].push(ll);redrawFog();updateAllFlagVisibility();if(db)revealedRef().child(myTeamId).push({lat:ll.lat,lng:ll.lng});}
+
+/* ══════════════════════════════════════
+   FLAGS
+══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   RANDOM POSITION IN SECTOR
+══════════════════════════════════════ */
+function randomPosInSector(sectorIdx){
+  // Random bearing within sector, random distance 25-85% of radius
+  const slice=360/NUM_TEAMS;
+  const startA=sectorIdx*slice-90, endA=startA+slice;
+  const bear=startA+(endA-startA)*(0.15+Math.random()*0.7);
+  const dist=RADIUS_M*(0.25+Math.random()*0.6);
+  return offsetLL(CENTER,bear,dist);
+}
+
+function regenerateFlagPos(sectorIdx){
+  return randomPosInSector(sectorIdx);
+}
+
+/* ══════════════════════════════════════
+   FLAG ICONS & VISIBILITY
+══════════════════════════════════════ */
+function flagIcon(teamColor, isCarried){
+  const t=ALL_TEAMS.find(x=>x.id===teamColor);
+  const col=t?t.hex:'#0a0a0a';
+  if(isCarried){
+    // Spinning/pulsing carried flag — orange tint outline
+    return{path:'M 0,-22 L 15,-13 L 0,-4 Z M 0,-4 L 0,8',
+      fillColor:col,fillOpacity:1,strokeColor:'#ff9900',strokeWeight:3,
+      scale:1.4,anchor:new google.maps.Point(0,8)};
+  }
+  return{path:'M 0,-22 L 15,-13 L 0,-4 Z M 0,-4 L 0,8',
+    fillColor:col,fillOpacity:1,strokeColor:'#ffffff',strokeWeight:1.5,
+    scale:1.2,anchor:new google.maps.Point(0,8)};
+}
+
+// Decide whether this player can see a given flag
+function canSeeFlag(flag){
+  if(!flag.lat||!flag.lng) return false;
+  // Always see own team's flags
+  if(flag.teamColor===myTeamId) return true;
+  // Scored flags sitting at an enemy home base — always visible (so you can steal back)
+  if(flag.status==='scored') return true;
+  // Carried flags are always visible (track the thief)
+  if(flag.carriedBy) return true;
+  // Hidden enemy flags — only visible if in revealed area
+  const flagPos={lat:flag.lat,lng:flag.lng};
+  for(const pt of(revealed[myTeamId]||[])){
+    if(distM(pt,flagPos)<=REVEAL_M) return true;
+  }
+  return false;
+}
+
+function updateAllFlagVisibility(){
+  Object.values(GS.flags).forEach(f=>{
+    const fm=fMarkers[f.id];
+    if(!fm)return;
+    const visible=canSeeFlag(f);
+    fm.marker.setMap(visible?map:null);
+    if(visible){
+      const isCarried=!!f.carriedBy;
+      // If carried, position follows carrier
+      if(isCarried && f.carriedBy!==myId){
+        const carrier=GS.players[f.carriedBy];
+        if(carrier&&carrier.lat){
+          fm.marker.setPosition({lat:carrier.lat,lng:carrier.lng});
+        }
+      } else if(!isCarried){
+        fm.marker.setPosition({lat:f.lat,lng:f.lng});
+      }
+      fm.marker.setIcon(flagIcon(f.teamColor,isCarried));
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   FLAG MODAL — steal / score
+══════════════════════════════════════ */
+function openFlagModal(flagId){
+  if(!me)return;
+  const flag=GS.flags[flagId];if(!flag)return;
+  if(!canSeeFlag(flag))return; // shouldn't be clickable anyway
+  activeModal=flagId;
+
+  const teamObj=ALL_TEAMS.find(t=>t.id===flag.teamColor);
+  document.getElementById('m-flag-name').textContent=flag.name;
+
+  let st='';
+  if(flag.carriedBy){
+    const carrier=GS.players[flag.carriedBy];
+    st=(flag.carriedBy===myId)?'YOU ARE CARRYING THIS FLAG':'Carried by '+(carrier?.name||'someone');
+  } else if(flag.status==='scored'){
+    const scorerObj=ALL_TEAMS.find(t=>t.id===flag.scoredBy);
+    st='Captured by '+(scorerObj?.label||flag.scoredBy)+' — at their home base ⌂';
+  } else {
+    st=flag.teamColor===myTeamId?"Your team's flag — defend it!":'Enemy flag — steal it!';
+  }
+  document.getElementById('m-flag-status').textContent=st;
+
+  const acts=document.getElementById('m-actions');acts.innerHTML='';
+  const flagPos={lat:flag.lat,lng:flag.lng};
+  const myPos=me.lastPos;
+  const dist=myPos?distM(myPos,flagPos):9999;
+  const distFt=Math.round(dist*3.281);
+
+  if(flag.carriedBy===myId){
+    // I'm carrying it — must reach MY home base to score
+    // Score as soon as back in own territory (any part of home sector)
+    const myCurrentSector=myPos?sectorOfPt(myPos):-1;
+    const inHomeTerritory=myCurrentSector>=0&&SECTOR_ASSIGNMENT[myCurrentSector]===myTeamId;
+    if(inHomeTerritory){
+      const b=document.createElement('button');
+      b.className='mact cap';b.textContent='⚑ Score Flag →';
+      b.onclick=()=>scoreFlag(flagId);acts.appendChild(b);
+      acts.insertAdjacentHTML('afterbegin',`<div style="font-size:.7rem;color:var(--green);font-family:var(--fd);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">✓ You're in your territory!</div>`);
+    } else {
+      acts.innerHTML=`<div style="font-size:.72rem;color:var(--muted);line-height:1.8;font-family:var(--fb)">Return to your territory to score!<br>Enemies can reclaim within 20 ft.</div>`;
+    }
+  } else if(flag.carriedBy){
+    // Someone else is carrying — show nothing here (reclaim is on player marker)
+    acts.innerHTML=`<div style="font-size:.72rem;color:var(--muted);line-height:1.8;font-family:var(--fb)">This flag is being carried.</div>`;
+  } else if(flag.teamColor===myTeamId){
+    // Own team's flag on ground
+    acts.innerHTML=`<div style="font-size:.72rem;color:var(--green);font-family:var(--fd);font-weight:700;letter-spacing:2px;text-transform:uppercase">✓ Your team's flag</div>`;
+  } else {
+    // Enemy flag on ground or scored at home base — steal it
+    const label=flag.status==='scored'?'⚡ Steal Flag Back →':'⚡ Steal Flag →';
+    if(dist>CAPTURE_M){
+      acts.innerHTML=`<div style="font-size:.72rem;color:var(--muted);line-height:1.8;font-family:var(--fb)">Must be within 25 ft to steal.<br>You are <strong style="color:var(--black)">${distFt} ft</strong> away.</div>`;
+    } else {
+      const b=document.createElement('button');
+      b.className='mact steal';b.textContent=label;
+      b.onclick=()=>stealFlag(flagId);acts.appendChild(b);
+    }
+  }
+
+  const cls=document.createElement('button');cls.className='mact cls';cls.textContent='Close';cls.onclick=closeModal;acts.appendChild(cls);
+  document.getElementById('flag-modal').classList.add('show');
+}
+
+function closeModal(){document.getElementById('flag-modal').classList.remove('show');activeModal=null;}
+
+/* ══════════════════════════════════════
+   STEAL FLAG
+══════════════════════════════════════ */
+async function stealFlag(flagId){
+  const flag=GS.flags[flagId];if(!flag||flag.carriedBy)return;
+  const myTeamObj=ALL_TEAMS.find(t=>t.id===myTeamId);
+  const flagTeamObj=ALL_TEAMS.find(t=>t.id===flag.teamColor);
+
+  const notifMsg=`${myName} [${myTeamObj.label}] stole the ${flagTeamObj.label} flag!`;
+
+  if(db){
+    const u={};
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedBy`]=myId;
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedByName`]=myName;
+    u[`games/${GAME_CODE}/flags/${flagId}/status`]='carried';
+    u[`games/${GAME_CODE}/flags/${flagId}/scoredBy`]=null;
+    if(me.lastPos){u[`games/${GAME_CODE}/flags/${flagId}/lat`]=me.lastPos.lat;u[`games/${GAME_CODE}/flags/${flagId}/lng`]=me.lastPos.lng;}
+    await db.ref().update(u);
+    // Global notification push
+    db.ref(`games/${GAME_CODE}/notifications`).push({msg:notifMsg,type:'steal',ts:Date.now()});
+    db.ref(`games/${GAME_CODE}/log`).push({msg:notifMsg,type:'steal',ts:Date.now()});
+  } else {
+    flag.carriedBy=myId;flag.carriedByName=myName;flag.status='carried';
+    GS.flags[flagId]=flag;
+    updateAllFlagVisibility();
+    renderFlags();
+  }
+  closeModal();
+  toast('Flag stolen! Return to your territory!','warn');
+  showNotifBanner(notifMsg,'steal');
+  log(notifMsg,'steal');
+}
+
+/* ══════════════════════════════════════
+   SCORE FLAG (bring to own territory)
+══════════════════════════════════════ */
+async function scoreFlag(flagId){
+  const flag=GS.flags[flagId];if(!flag||flag.carriedBy!==myId)return;
+  const myTeamObj=ALL_TEAMS.find(t=>t.id===myTeamId);
+  const flagTeamObj=ALL_TEAMS.find(t=>t.id===flag.teamColor);
+  const notifMsg=`${myName} [${myTeamObj.label}] scored the ${flagTeamObj.label} flag! +1 point`;
+
+  // The captured flag now rests at MY home base — opponents can steal it back from there
+  const myHomeBase=getMyHomeBase();
+  const newPos=myHomeBase||randomPosInSector(getHomeSectorIdx(myTeamId));
+
+  if(db){
+    const u={};
+    u[`games/${GAME_CODE}/scores/${myTeamId}`]=(GS.scores[myTeamId]||0)+1;
+    // Flag stays at MY home base, no longer carried, belongs to my team now
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedBy`]=null;
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedByName`]=null;
+    u[`games/${GAME_CODE}/flags/${flagId}/status`]='scored'; // at enemy home base
+    u[`games/${GAME_CODE}/flags/${flagId}/scoredBy`]=myTeamId;
+    u[`games/${GAME_CODE}/flags/${flagId}/lat`]=newPos.lat;
+    u[`games/${GAME_CODE}/flags/${flagId}/lng`]=newPos.lng;
+    await db.ref().update(u);
+    db.ref(`games/${GAME_CODE}/notifications`).push({msg:notifMsg,type:'score',ts:Date.now()});
+    db.ref(`games/${GAME_CODE}/log`).push({msg:notifMsg,type:'score',ts:Date.now()});
+  } else {
+    GS.scores[myTeamId]=(GS.scores[myTeamId]||0)+1;
+    flag.carriedBy=null;flag.carriedByName=null;flag.status='scored';flag.scoredBy=myTeamId;
+    flag.lat=newPos.lat;flag.lng=newPos.lng;
+    const el=document.getElementById('sc-'+myTeamId);if(el)el.textContent=GS.scores[myTeamId];
+    updateAllFlagVisibility();renderFlags();
+  }
+  closeModal();
+  updateAllFlagVisibility();
+  toast('FLAG SCORED! +1 point','ok');
+  showNotifBanner(notifMsg,'score');
+  log(notifMsg,'score');
+}
+
+// Get my home base position
+function getMyHomeBase(){
+  const sectorIdx=getHomeSectorIdx(myTeamId);
+  if(sectorIdx<0)return null;
+  return homeBasePos(sectorIdx);
+}
+
+function getHomeSectorIdx(teamId){
+  return SECTOR_ASSIGNMENT.indexOf(teamId);
+}
+
+function isAtHomeBase(pos, teamId){
+  const si=getHomeSectorIdx(teamId);
+  if(si<0)return false;
+  const hb=homeBasePos(si);
+  return distM(pos,hb)<=CAPTURE_M*3; // 75ft for scoring — a little generous
+}
+
+/* ══════════════════════════════════════
+   RECLAIM FLAG (tap carrier within 20ft)
+══════════════════════════════════════ */
+const RECLAIM_M=6.096; // 20 feet
+
+function openPlayerModal(playerId){
+  if(!me||playerId===myId)return;
+  const player=GS.players[playerId];if(!player)return;
+
+  // Find any flag this player is carrying from our team
+  const carriedFlag=Object.values(GS.flags).find(f=>f.carriedBy===playerId&&f.teamColor===myTeamId);
+  if(!carriedFlag)return; // nothing to reclaim
+
+  const playerPos=player.lat?{lat:player.lat,lng:player.lng}:null;
+  const dist=playerPos&&me.lastPos?distM(me.lastPos,playerPos):9999;
+  const distFt=Math.round(dist*3.281);
+
+  const teamObj=ALL_TEAMS.find(t=>t.id===player.team)||ALL_TEAMS[0];
+
+  // Reuse flag modal for reclaim action
+  document.getElementById('m-flag-name').textContent=player.name;
+  document.getElementById('m-flag-status').textContent=`Carrying your ${ALL_TEAMS.find(t=>t.id===carriedFlag.teamColor)?.label||''} flag`;
+
+  const acts=document.getElementById('m-actions');acts.innerHTML='';
+
+  if(dist>RECLAIM_M){
+    acts.innerHTML=`<div style="font-size:.72rem;color:var(--muted);line-height:1.8;font-family:var(--fb)">Must be within 20 ft to reclaim.<br>You are <strong style="color:var(--black)">${distFt} ft</strong> away. Chase them!</div>`;
+  } else {
+    const b=document.createElement('button');
+    b.className='mact cap';b.textContent='↩ Reclaim Flag →';
+    b.onclick=()=>reclaimFlag(carriedFlag.id,playerId);acts.appendChild(b);
+  }
+  const cls=document.createElement('button');cls.className='mact cls';cls.textContent='Close';cls.onclick=closeModal;acts.appendChild(cls);
+  document.getElementById('flag-modal').classList.add('show');
+}
+
+async function reclaimFlag(flagId, fromPlayerId){
+  const flag=GS.flags[flagId];if(!flag)return;
+  const myTeamObj=ALL_TEAMS.find(t=>t.id===myTeamId);
+  const notifMsg=`${myName} [${myTeamObj.label}] reclaimed their flag from ${flag.carriedByName||'enemy'}!`;
+
+  // Regenerate at a random position in the flag's home sector
+  const newPos=randomPosInSector(flag.sector);
+
+  if(db){
+    const u={};
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedBy`]=null;
+    u[`games/${GAME_CODE}/flags/${flagId}/carriedByName`]=null;
+    u[`games/${GAME_CODE}/flags/${flagId}/status`]='hidden';
+    u[`games/${GAME_CODE}/flags/${flagId}/lat`]=newPos.lat;
+    u[`games/${GAME_CODE}/flags/${flagId}/lng`]=newPos.lng;
+    await db.ref().update(u);
+    db.ref(`games/${GAME_CODE}/notifications`).push({msg:notifMsg,type:'reclaim',ts:Date.now()});
+    db.ref(`games/${GAME_CODE}/log`).push({msg:notifMsg,type:'reclaim',ts:Date.now()});
+  } else {
+    flag.carriedBy=null;flag.carriedByName=null;flag.status='hidden';
+    flag.lat=newPos.lat;flag.lng=newPos.lng;
+    updateAllFlagVisibility();renderFlags();
+  }
+  closeModal();
+  // New position may already be in an area the enemy has discovered — update visibility
+  updateAllFlagVisibility();
+  toast('Flag reclaimed! Regenerated in your sector.','ok');
+  showNotifBanner(notifMsg,'reclaim');
+  log(notifMsg,'reclaim');
+}
+
+/* ══════════════════════════════════════
+   LOCATION
+══════════════════════════════════════ */
+function startTracking(){
+  if(!navigator.geolocation){toast('Geolocation unavailable','warn');return;}
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const{latitude:lat,longitude:lng}=pos.coords,ll={lat,lng},s=sectorOfPt(ll);
+    me.lastPos=ll;
+    updatePlayerMarker(myId,ll,myTeamId,myName,true);
+    revealAndSync(ll);
+    const el=document.getElementById('mp-sector');
+    if(s>=0){const home=SECTOR_ASSIGNMENT[s]===myTeamId;el.textContent='Sector '+(s+1)+' — '+(home?'Home':'Enemy');el.style.color=home?'var(--green)':'var(--red)';}
+    else{el.textContent='Outside Boundary';el.style.color='var(--muted)';}
+    if(activeModal)openFlagModal(activeModal);
+    updateCarriedFlagPos();
+    updateAllFlagVisibility();
+    if(db)db.ref(`games/${GAME_CODE}/players/${myId}`).update({lat,lng,sector:s,online:true});
+    saveSession(); // refresh timestamp so session stays valid
+  },err=>toast('GPS: '+err.message,'warn'),{enableHighAccuracy:true,maximumAge:2000,timeout:10000});
+}
+
+function updatePlayerMarker(id,pos,teamId,name,isMe){
+  const t=ALL_TEAMS.find(x=>x.id===teamId)||ALL_TEAMS[0];
+  // Check if this player is carrying a flag from MY team
+  const carryingMyFlag=Object.values(GS.flags).some(f=>f.carriedBy===id&&f.teamColor===myTeamId);
+  const strokeCol=carryingMyFlag?'#ff9900':'#ffffff';
+  const strokeW=carryingMyFlag?3:(isMe?2.5:1.5);
+  const scale=carryingMyFlag?12:(isMe?10:7);
+  const icon={path:google.maps.SymbolPath.CIRCLE,scale,fillColor:t.hex,fillOpacity:1,strokeColor:strokeCol,strokeWeight:strokeW};
+  if(pMarkers[id]){
+    pMarkers[id].setPosition(pos);
+    pMarkers[id].setIcon(icon);
+  } else {
+    const m=new google.maps.Marker({map,position:pos,icon,zIndex:isMe?200:100,
+      label:{text:name.substring(0,4),color:'#ffffff',fontSize:'8px',fontFamily:'Barlow Condensed'}});
+    if(!isMe){
+      m.addListener('click',()=>openPlayerModal(id));
+    }
+    pMarkers[id]=m;
+  }
+}
+
+function updateCarriedFlagPos(){
+  // If I'm carrying a flag, update its lat/lng in Firebase as I move
+  const myCarried=Object.entries(GS.flags).find(([id,f])=>f.carriedBy===myId);
+  if(!myCarried||!me.lastPos)return;
+  const [flagId]=myCarried;
+  if(db){
+    db.ref(`games/${GAME_CODE}/flags/${flagId}`).update({lat:me.lastPos.lat,lng:me.lastPos.lng}).catch(()=>{});
+  }
+}
+function removePlayerMarker(id){if(pMarkers[id]){pMarkers[id].setMap(null);delete pMarkers[id];}}
+
+/* ══════════════════════════════════════
+   RENDER
+══════════════════════════════════════ */
+function renderRoster(){
+  const el=document.getElementById('m-roster'),ps=Object.values(GS.players).filter(p=>p.online!==false);
+  el.innerHTML=ps.length?ps.map(p=>{const t=ALL_TEAMS.find(x=>x.id===p.team)||ALL_TEAMS[0];return`<div class="prow"><div class="pdot" style="background:${t.hex}"></div><span class="pn">${p.name}${p.id===myId?' ★':''}</span><span class="ps">${p.sector>=0?'S'+(p.sector+1):'—'}</span></div>`;}).join(''):`<div style="padding:8px 16px;color:var(--muted);font-family:var(--fb);font-size:.7rem">No other players yet.</div>`;
+}
+
+function renderFlags(){
+  const el=document.getElementById('m-flags');
+  el.innerHTML=Object.values(GS.flags).map(f=>{
+    const teamObj=ALL_TEAMS.find(t=>t.id===f.teamColor);
+    let status='Hidden';let statusCol='var(--muted)';
+    if(f.carriedBy){
+      const carrier=GS.players[f.carriedBy];
+      status=(f.carriedBy===myId?'YOU carry it':(carrier?.name||'?')+' carrying');
+      statusCol='#ff9900';
+    } else if(f.status==='scored'){
+      const scorer=ALL_TEAMS.find(t=>t.id===f.scoredBy);
+      status='At '+(scorer?.label||'?')+' base ⌂';
+      statusCol=scorer?.hex||'var(--muted)';
+    } else if(f.teamColor===myTeamId){
+      status='In your sector';statusCol='var(--green)';
+    }
+    return`<div class="frow"><span style="color:${teamObj?.hex||'#000'}">⚑</span><span style="flex:1">${f.name}</span><span class="fo" style="color:${statusCol};font-size:.58rem">${status}</span></div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════
+   TIMER
+══════════════════════════════════════ */
+function setConn(state){const dot=document.getElementById('conn-dot'),lbl=document.getElementById('conn-label');dot.className='';if(state==='live'){dot.classList.add('live');lbl.textContent='LIVE';}else if(state==='err'){dot.classList.add('err');lbl.textContent='OFFLINE';}else lbl.textContent='CONNECTING';}
+
+function setTimerDisplay(secs){
+  const m=Math.floor(secs/60).toString().padStart(2,'0'),s=(secs%60).toString().padStart(2,'0');
+  document.getElementById('timer').textContent=m+':'+s;
+}
+
+function showStartGameButton(){
+  if(!isHost) return;
+  const el=document.getElementById('start-game-overlay');
+  if(!el) return;
+  el.style.display='flex';
+  el.style.visibility='visible';
+  const codeEl=document.getElementById('overlay-game-code');
+  if(codeEl)codeEl.textContent=GAME_CODE;
+}
+
+function hideStartGameButton(){
+  const el=document.getElementById('start-game-overlay');
+  if(el){ el.style.display='none'; el.style.visibility='hidden'; }
+}
+
+function hostStartGame(){
+  hideStartGameButton();
+  // Write started status to Firebase so all joiners begin
+  if(db){
+    metaRef().update({status:'started', startedAt:Date.now()}).catch(()=>{});
+  }
+  startTimer();
+  toast('Game started!','ok');
+  log('Game started by host','join');
+}
+
+function waitForGameStart(){
+  if(!db){startTimer();return;}
+  // Listen for host to flip status to 'started'
+  metaRef().on('value', snap=>{
+    const meta=snap.val();
+    if(meta&&meta.status==='started'){
+      metaRef().off(); // stop listening
+      hideStartGameButton();
+      startTimer();
+    }
+  });
+}
+
+function startTimer(){
+  timerInt=setInterval(async()=>{
+    GS.timeLeft--;
+    setTimerDisplay(GS.timeLeft);
+    if(GS.timeLeft<=30)document.getElementById('timer').classList.add('urgent');
+    if(GS.timeLeft%10===0&&db&&isHost)metaRef().update({timeLeft:GS.timeLeft}).catch(()=>{});
+    if(GS.timeLeft<=0)endGame();
+  },1000);
+}
+
+function endGame(){
+  clearInterval(timerInt);
+  const sorted=Object.entries(GS.scores).sort((a,b)=>b[1]-a[1]);
+  const winnerId=sorted[0][1]>sorted[1][1]?sorted[0][0]:null;
+  const winnerObj=winnerId?ALL_TEAMS.find(t=>t.id===winnerId):null;
+  const goEl=document.getElementById('gameover'),titleEl=document.getElementById('go-title');
+  titleEl.textContent=winnerId?(winnerObj.label+' WINS'):"IT'S A TIE";
+  titleEl.style.color=winnerObj?winnerObj.hex:'var(--black)';
+  document.getElementById('go-scores').textContent=ACTIVE_TEAMS.map(t=>t.label+' '+(GS.scores[t.id]||0)).join('  ·  ');
+  goEl.classList.add('show');
+}
+
+function toggleMenu(){const open=document.getElementById('menu').classList.toggle('open');document.getElementById('hbtn').classList.toggle('open',open);document.getElementById('backdrop').classList.toggle('show',open);}
+function closeMenu(){document.getElementById('menu').classList.remove('open');document.getElementById('hbtn').classList.remove('open');document.getElementById('backdrop').classList.remove('show');}
+
+/* ══════════════════════════════════════
+   NOTIFICATION BANNER
+══════════════════════════════════════ */
+function showNotifBanner(msg, type){
+  // Full-screen flash banner for important events
+  const existing=document.getElementById('notif-banner');
+  if(existing)existing.remove();
+
+  const colors={steal:'#ff9900',score:'#00a854',reclaim:'#1a5cff'};
+  const icons={steal:'⚡',score:'⚑',reclaim:'↩'};
+  const col=colors[type]||'#0a0a0a';
+
+  const banner=document.createElement('div');
+  banner.id='notif-banner';
+  banner.style.cssText=`position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:${col};color:#fff;
+    font-family:var(--fd);font-weight:800;font-size:.85rem;letter-spacing:2px;text-transform:uppercase;
+    padding:calc(var(--safe-top) + 14px) 20px 14px;text-align:center;
+    animation:notifIn .2s ease;`;
+  banner.textContent=(icons[type]||'')+'  '+msg;
+  document.body.appendChild(banner);
+  setTimeout(()=>{
+    banner.style.animation='notifOut .3s ease forwards';
+    setTimeout(()=>banner.remove(),400);
+  },3500);
+}
+
+function listenNotifications(){
+  if(!db)return;
+  let firstLoad=true;
+  db.ref(`games/${GAME_CODE}/notifications`).on('value',snap=>{
+    if(firstLoad){firstLoad=false;return;} // skip existing
+    const all=snap.val()||{};
+    const entries=Object.values(all);
+    if(!entries.length)return;
+    // Show the most recent one if it's new (within 5s)
+    const latest=entries.sort((a,b)=>b.ts-a.ts)[0];
+    if(Date.now()-latest.ts<5000){
+      showNotifBanner(latest.msg,latest.type);
+    }
+  });
+}
+
+function log(msg,type='info'){const el=document.getElementById('m-log'),d=document.createElement('div');d.className='le '+type;const t=new Date().toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});d.textContent='['+t+'] '+msg;el.prepend(d);}
+function toast(msg,type='info'){const el=document.getElementById('toasts'),d=document.createElement('div');d.className='toast '+type;d.textContent=msg;el.appendChild(d);setTimeout(()=>d.remove(),4000);}
+
+/* ══════════════════════════════════════
+   QUIT
+══════════════════════════════════════ */
+async function quitToHome(){
+  clearInterval(timerInt);
+  clearSession();
+  if(watchId!=null)navigator.geolocation.clearWatch(watchId);
+  if(myId&&db)await db.ref(`games/${GAME_CODE}/players/${myId}`).update({online:false}).catch(()=>{});
+  if(db){playersRef().off();flagsRef().off();scoresRef().off();revealedRef().off();
+    db.ref(`games/${GAME_CODE}/notifications`).off();}
+  GS={players:{},flags:{},scores:{},timeLeft:GAME_SECS};revealed={};
+  Object.keys(pMarkers).forEach(k=>pMarkers[k].setMap(null));
+  Object.keys(fMarkers).forEach(k=>fMarkers[k]?.marker?.setMap(null));
+  pMarkers={};fMarkers={};homeBaseMarkers={};
+  me=null;myTeamId=null;myName=null;myId=null;activeModal=null;watchId=null;
+  cfgMyTeamCreate=null;cfgMyTeamJoin=null;joinedGameMeta=null;GAME_CODE='';isHost=false;
+  document.getElementById('create-name').value='';
+  document.getElementById('join-name').value='';
+  document.getElementById('join-code').value='';
+  document.getElementById('join-status').textContent='';
+  document.getElementById('join-preview').classList.remove('show');
+  document.getElementById('timer').textContent='--:--';document.getElementById('timer').classList.remove('urgent');
+  const sgo=document.getElementById('start-game-overlay');
+  if(sgo){sgo.style.display='none';sgo.style.visibility='hidden';}
+  document.getElementById('m-log').innerHTML='';document.getElementById('gameover').classList.remove('show');
+  if(fogCanvas)fogCanvas.getContext('2d').clearRect(0,0,fogCanvas.width,fogCanvas.height);
+  closeMenu();closeModal();
+  buildTeamStrip('create',null);buildTeamStrip('join',null);
+  goTo('landing');
+}
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   SESSION PERSISTENCE
+══════════════════════════════════════ */
+const SESSION_KEY = 'ctf_session';
+
+function saveSession(){
+  try {
+    const session = {
+      gameCode:   GAME_CODE,
+      myId:       myId,
+      myName:     myName,
+      myTeamId:   myTeamId,
+      isHost:     isHost,
+      numTeams:   NUM_TEAMS,
+      radiusMi:   RADIUS_M / 1609.34,
+      sectorAssignment: SECTOR_ASSIGNMENT,
+      centerLat:  CENTER.lat,
+      centerLng:  CENTER.lng,
+      savedAt:    Date.now(),
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch(e) { /* localStorage unavailable */ }
+}
+
+function clearSession(){
+  try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+}
+
+function loadSession(){
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    // Expire sessions older than 3 hours
+    if(Date.now() - s.savedAt > 3 * 60 * 60 * 1000){ clearSession(); return null; }
+    return s;
+  } catch(e) { return null; }
+}
+
+async function checkRejoin(){
+  const s = loadSession();
+  if(!s || !s.gameCode) return false;
+
+  // Verify game still exists in Firebase
+  if(!db){ const ok=initFirebase(); if(!ok) return false; }
+
+  try {
+    const snap = await db.ref(`games/${s.gameCode}/meta`).once('value');
+    const meta = snap.val();
+    if(!meta) { clearSession(); return false; }
+
+    // Game over — don't rejoin
+    if(meta.status === 'ended') { clearSession(); return false; }
+
+    // Restore all state from session
+    GAME_CODE        = s.gameCode;
+    myId             = s.myId;
+    myName           = s.myName;
+    myTeamId         = s.myTeamId;
+    isHost           = s.isHost || false;
+    NUM_TEAMS        = s.numTeams || 3;
+    ACTIVE_TEAMS     = ALL_TEAMS.slice(0, NUM_TEAMS);
+    RADIUS_M         = (s.radiusMi || 0.25) * 1609.34;
+    SECTOR_ASSIGNMENT= s.sectorAssignment || [];
+    CENTER           = { lat: s.centerLat || 43.61667, lng: s.centerLng || -116.20472 };
+    GAME_SECS        = (meta.durMin || 20) * 60;
+    GS.timeLeft      = meta.timeLeft || GAME_SECS;
+    GS.scores        = {};
+    ACTIVE_TEAMS.forEach(t => { GS.scores[t.id] = 0; });
+    revealed         = {};
+    ACTIVE_TEAMS.forEach(t => { revealed[t.id] = []; });
+
+    me = { id: myId, name: myName, team: myTeamId, lastPos: null };
+
+    // Show rejoin banner
+    showRejoinBanner(s.myName, s.gameCode);
+
+    updateMenuBadge();
+    buildScoreBar();
+    GS.timeLeft = meta.timeLeft || GAME_SECS;
+    setTimerDisplay(GS.timeLeft);
+    goTo('game');
+    initMapOnce();
+    return true;
+
+  } catch(e) {
+    console.warn('Rejoin failed:', e);
+    clearSession();
+    return false;
+  }
+}
+
+function showRejoinBanner(name, code){
+  const banner = document.createElement('div');
+  banner.style.cssText = `position:fixed;top:0;left:0;right:0;z-index:9999;
+    background:#00a854;color:#fff;
+    font-family:var(--fd);font-weight:800;font-size:.78rem;letter-spacing:2px;text-transform:uppercase;
+    padding:calc(var(--safe-top) + 12px) 20px 12px;text-align:center;
+    animation:notifIn .2s ease;`;
+  banner.textContent = `↩ Rejoined as ${name} · Game ${code}`;
+  document.body.appendChild(banner);
+  setTimeout(() => {
+    banner.style.animation = 'notifOut .3s ease forwards';
+    setTimeout(() => banner.remove(), 400);
+  }, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  updateCreateDots();
+  buildTeamStrip('create', null);
+  buildTeamStrip('join', null);
+
+  // Check for an active session to rejoin on page load
+  // Small delay to let Firebase SDK initialize
+  setTimeout(async () => {
+    const rejoined = await checkRejoin();
+    if(!rejoined){
+      // No session — stay on landing screen (already active by default)
+    }
+  }, 600);
+});
+
+window.initMap=function(){
+  if(document.getElementById('game').classList.contains('active')&&!map)bootMap();
+};
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBKNY3hjduG1kzU-98GOOfC2iVAskLwTL8&callback=initMap&loading=async"></script>
+</body>
+</html>
