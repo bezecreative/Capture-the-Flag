@@ -266,7 +266,7 @@ html,body{height:100%;overflow:hidden;font-family:var(--fb);background:var(--whi
     <div class="cfg-section">
       <label class="cfg-label">Start Location</label>
       <div class="location-row">
-        <input class="location-input" id="create-loc" type="text" placeholder="Address or use GPS" autocomplete="off" autocorrect="off" spellcheck="false">
+        <input class="location-input" id="create-loc" type="text" placeholder="Address or use GPS" autocomplete="off" autocorrect="off" spellcheck="false" oninput="debounceGeocode()">
         <button class="gps-btn" type="button" onclick="getGPS('create')" ontouchend="getGPS('create');event.preventDefault()">⊕ GPS</button>
       </div>
       <div class="loc-status" id="create-loc-status">Enter an address or tap GPS</div>
@@ -548,17 +548,77 @@ function getGPS(context){
 async function resolveLocation(inputId, statusId){
   const input=document.getElementById(inputId).value.trim();
   const statusEl=document.getElementById(statusId);
-  if(!input){cfgCenter={lat:43.61667,lng:-116.20472};statusEl.textContent='Using default: 1020 W Main St, Boise';statusEl.className='loc-status ok';return;}
+
+  // Empty input — use default
+  if(!input){
+    cfgCenter={lat:43.61667,lng:-116.20472};
+    statusEl.textContent='Using default: 1020 W Main St, Boise';
+    statusEl.className='loc-status ok';
+    return;
+  }
+
+  // Already coordinates — use directly
   const cm=input.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
-  if(cm){cfgCenter={lat:parseFloat(cm[1]),lng:parseFloat(cm[2])};return;}
-  if(typeof google==='undefined'||!google.maps){cfgCenter={lat:43.61667,lng:-116.20472};return;}
-  return new Promise(resolve=>{
-    new google.maps.Geocoder().geocode({address:input},(results,status)=>{
-      if(status==='OK'&&results[0]){cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};statusEl.textContent='✓ '+results[0].formatted_address;statusEl.className='loc-status ok';}
-      else{cfgCenter={lat:43.61667,lng:-116.20472};statusEl.textContent='Address not found — using default';statusEl.className='loc-status err';}
-      resolve();
-    });
-  });
+  if(cm){
+    cfgCenter={lat:parseFloat(cm[1]),lng:parseFloat(cm[2])};
+    statusEl.textContent='✓ Coordinates set';
+    statusEl.className='loc-status ok';
+    return;
+  }
+
+  // Use Google Geocoding REST API directly — works before Maps JS loads
+  statusEl.textContent='Resolving address...';
+  statusEl.className='loc-status';
+  try {
+    const key='AIzaSyBKNY3hjduG1kzU-98GOOfC2iVAskLwTL8';
+    const url=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(input)}&key=${key}`;
+    const resp=await fetch(url);
+    const data=await resp.json();
+    if(data.status==='OK'&&data.results[0]){
+      const loc=data.results[0].geometry.location;
+      cfgCenter={lat:loc.lat,lng:loc.lng};
+      statusEl.textContent='✓ '+data.results[0].formatted_address;
+      statusEl.className='loc-status ok';
+    } else {
+      // Fallback: try JS SDK geocoder if Maps is loaded
+      if(typeof google!=='undefined'&&google.maps){
+        await new Promise(resolve=>{
+          new google.maps.Geocoder().geocode({address:input},(results,status)=>{
+            if(status==='OK'&&results[0]){
+              cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};
+              statusEl.textContent='✓ '+results[0].formatted_address;
+              statusEl.className='loc-status ok';
+            } else {
+              cfgCenter={lat:43.61667,lng:-116.20472};
+              statusEl.textContent='Address not found — using default';
+              statusEl.className='loc-status err';
+            }
+            resolve();
+          });
+        });
+      } else {
+        cfgCenter={lat:43.61667,lng:-116.20472};
+        statusEl.textContent='Address not found — using default';
+        statusEl.className='loc-status err';
+      }
+    }
+  } catch(e){
+    cfgCenter={lat:43.61667,lng:-116.20472};
+    statusEl.textContent='Network error — using default location';
+    statusEl.className='loc-status err';
+    console.warn('Geocode error:',e);
+  }
+}
+
+let _geocodeTimer=null;
+function debounceGeocode(){
+  clearTimeout(_geocodeTimer);
+  const statusEl=document.getElementById('create-loc-status');
+  statusEl.textContent=''; statusEl.className='loc-status';
+  _geocodeTimer=setTimeout(()=>{
+    const val=document.getElementById('create-loc').value.trim();
+    if(val.length>4) resolveLocation('create-loc','create-loc-status');
+  },800);
 }
 
 /* ══════════════════════════════════════
