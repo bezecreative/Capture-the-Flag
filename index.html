@@ -486,6 +486,7 @@ let cfgNumTeams=3, cfgMyTeamCreate=null, cfgMyTeamJoin=null, cfgCenter=null;
 let GAME_CODE='', CENTER={lat:43.61667,lng:-116.20472}, RADIUS_M=0.25*1609.34;
 let NUM_TEAMS=3, ACTIVE_TEAMS=[], SECTOR_ASSIGNMENT=[], GAME_SECS=20*60;
 let map,fogCanvas,pMarkers={},fMarkers={},homeBaseMarkers={};
+window._mapsApiReady=false;
 let me=null,myTeamId=null,myName=null,myId=null;
 let activeModal=null,timerInt=null,watchId=null,codeCheckTimer=null;
 let revealed={};
@@ -549,7 +550,7 @@ async function resolveLocation(inputId, statusId){
   const input=document.getElementById(inputId).value.trim();
   const statusEl=document.getElementById(statusId);
 
-  // Empty input — use default
+  // Empty — use default
   if(!input){
     cfgCenter={lat:43.61667,lng:-116.20472};
     statusEl.textContent='Using default: 1020 W Main St, Boise';
@@ -557,7 +558,7 @@ async function resolveLocation(inputId, statusId){
     return;
   }
 
-  // Already coordinates — use directly
+  // Raw coordinates — use directly
   const cm=input.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
   if(cm){
     cfgCenter={lat:parseFloat(cm[1]),lng:parseFloat(cm[2])};
@@ -566,48 +567,40 @@ async function resolveLocation(inputId, statusId){
     return;
   }
 
-  // Use Google Geocoding REST API directly — works before Maps JS loads
   statusEl.textContent='Resolving address...';
   statusEl.className='loc-status';
-  try {
-    const key='AIzaSyBKNY3hjduG1kzU-98GOOfC2iVAskLwTL8';
-    const url=`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(input)}&key=${key}`;
-    const resp=await fetch(url);
-    const data=await resp.json();
-    if(data.status==='OK'&&data.results[0]){
-      const loc=data.results[0].geometry.location;
-      cfgCenter={lat:loc.lat,lng:loc.lng};
-      statusEl.textContent='✓ '+data.results[0].formatted_address;
-      statusEl.className='loc-status ok';
-    } else {
-      // Fallback: try JS SDK geocoder if Maps is loaded
-      if(typeof google!=='undefined'&&google.maps){
-        await new Promise(resolve=>{
-          new google.maps.Geocoder().geocode({address:input},(results,status)=>{
-            if(status==='OK'&&results[0]){
-              cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};
-              statusEl.textContent='✓ '+results[0].formatted_address;
-              statusEl.className='loc-status ok';
-            } else {
-              cfgCenter={lat:43.61667,lng:-116.20472};
-              statusEl.textContent='Address not found — using default';
-              statusEl.className='loc-status err';
-            }
-            resolve();
-          });
-        });
+
+  // Wait for Maps API if not ready yet (it loads async on page load)
+  if(!window._mapsApiReady){
+    await new Promise(resolve=>{
+      window._pendingGeocode=resolve;
+      setTimeout(resolve,5000); // max 5s wait
+    });
+    window._pendingGeocode=null;
+  }
+
+  if(typeof google==='undefined'||!google.maps){
+    cfgCenter={lat:43.61667,lng:-116.20472};
+    statusEl.textContent='Maps not loaded — using default';
+    statusEl.className='loc-status err';
+    return;
+  }
+
+  return new Promise(resolve=>{
+    new google.maps.Geocoder().geocode({address:input,region:'us'},(results,status)=>{
+      if(status==='OK'&&results[0]){
+        cfgCenter={lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()};
+        statusEl.textContent='✓ '+results[0].formatted_address;
+        statusEl.className='loc-status ok';
       } else {
         cfgCenter={lat:43.61667,lng:-116.20472};
-        statusEl.textContent='Address not found — using default';
+        statusEl.textContent=`Address not found (${status}) — using default`;
         statusEl.className='loc-status err';
+        console.warn('Geocode status:',status);
       }
-    }
-  } catch(e){
-    cfgCenter={lat:43.61667,lng:-116.20472};
-    statusEl.textContent='Network error — using default location';
-    statusEl.className='loc-status err';
-    console.warn('Geocode error:',e);
-  }
+      resolve();
+    });
+  });
 }
 
 let _geocodeTimer=null;
@@ -894,9 +887,12 @@ function buildScoreBar(){
 }
 
 function initMapOnce(){
-  if(typeof google!=='undefined'&&google.maps){bootMap();return;}
+  if(window._mapsApiReady&&typeof google!=='undefined'&&google.maps){bootMap();return;}
   let tries=0;
-  const wait=setInterval(()=>{if(typeof google!=='undefined'&&google.maps){clearInterval(wait);bootMap();}else if(++tries>25){clearInterval(wait);toast('Map failed — host on https://','warn');}},300);
+  const wait=setInterval(()=>{
+    if(window._mapsApiReady&&typeof google!=='undefined'&&google.maps){clearInterval(wait);bootMap();}
+    else if(++tries>40){clearInterval(wait);toast('Map failed — check connection','warn');}
+  },250);
 }
 
 function bootMap(){
@@ -1808,10 +1804,14 @@ document.addEventListener('DOMContentLoaded', function(){
   }, 600);
 });
 
-window.initMap=function(){
-  if(document.getElementById('game').classList.contains('active')&&!map)bootMap();
+window.onMapsLoaded=function(){
+  window._mapsApiReady=true;
+  // If already on game screen, boot the map
+  if(document.getElementById('game').classList.contains('active')&&!map) bootMap();
+  // If a geocode was waiting, retry it
+  if(window._pendingGeocode) window._pendingGeocode();
 };
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBKNY3hjduG1kzU-98GOOfC2iVAskLwTL8&callback=initMap&loading=async"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBKNY3hjduG1kzU-98GOOfC2iVAskLwTL8&libraries=places&callback=onMapsLoaded" async defer></script>
 </body>
 </html>
