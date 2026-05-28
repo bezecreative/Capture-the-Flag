@@ -691,18 +691,41 @@ async function createGame(){
   if(!name){alert('Enter a call sign');return;}
   if(!cfgMyTeamCreate){alert('Select your team');return;}
 
-  await resolveLocation('create-loc','create-loc-status');
+  // Show loading state on button
+  const btn=document.querySelector('#create .btn-primary');
+  const origText=btn?btn.textContent:'';
+  if(btn){btn.textContent='Setting up...';btn.disabled=true;}
+  try {
+
+  try {
+    await resolveLocation('create-loc','create-loc-status');
+  } catch(e){ console.warn('resolveLocation error:',e); }
+
+  // Validate Firebase is connected
+  if(!db){
+    const ok=initFirebase();
+    if(!ok){
+      alert('Firebase not connected. Check your internet connection and try again.');
+      if(btn){btn.textContent=origText;btn.disabled=false;}
+      return;
+    }
+  }
+
+  // Make sure Firebase is ready
+  if(!db){ initFirebase(); }
 
   GAME_CODE=generateCode();
   // Keep trying if code already exists
   if(db){
-    let attempts=0;
-    while(attempts<10){
-      const snap=await db.ref(`games/${GAME_CODE}`).once('value');
-      if(!snap.exists())break;
-      GAME_CODE=generateCode();
-      attempts++;
-    }
+    try {
+      let attempts=0;
+      while(attempts<10){
+        const snap=await db.ref(`games/${GAME_CODE}`).once('value');
+        if(!snap.exists())break;
+        GAME_CODE=generateCode();
+        attempts++;
+      }
+    } catch(e){ console.warn('Code check error:',e); }
   }
 
   NUM_TEAMS=cfgNumTeams;
@@ -734,7 +757,7 @@ async function createGame(){
     });
     const initScores={};ACTIVE_TEAMS.forEach(t=>{initScores[t.id]=0;});
     const initRev={};ACTIVE_TEAMS.forEach(t=>{initRev[t.id]={};});
-    await db.ref(`games/${GAME_CODE}`).set({
+    try { await db.ref(`games/${GAME_CODE}`).set({
       meta:{
         code:GAME_CODE,numTeams:NUM_TEAMS,radiusMi,durMin,
         centerLat:CENTER.lat,centerLng:CENTER.lng,
@@ -743,8 +766,17 @@ async function createGame(){
         status:'waiting'
       },
       flags,scores:initScores,revealed:initRev,players:{}
-    });
+    }); } catch(e){ console.error('Firebase write error:',e); alert('Game created locally — Firebase unavailable'); }
   }
+
+  } catch(err) {
+    console.error('createGame error:', err);
+    alert('Error creating game: ' + err.message);
+    if(btn){btn.textContent=origText;btn.disabled=false;}
+    return;
+  }
+
+  if(btn){btn.textContent=origText;btn.disabled=false;}
 
   // Show code share screen
   document.getElementById('share-code').textContent=GAME_CODE;
